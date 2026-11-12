@@ -4,6 +4,8 @@ Canonical public spec: https://github.com/jonheaven/dmaps
 License: MIT
 
 Status (see also README.md Start here, and AGENTS.md):
+- Anchors (real-world land claims) are fully on-chain Dogecoin inscriptions that spend the parcel title UTXO. There is no centralized DB. Any conformant indexer recomputes identical state from the chain and docs/INDEXING.md. The Dogex HTTP API is a read convenience, not authority.
+- End-to-end: current title holder broadcasts a committed ÐLand op:"anchor" reveal that spends the title satpoint; after confirmation every indexer applies the same rules; occupation is a chain fact, optionally read via GET /api/land/cell/{h3} or compared via checkpoint hashes.
 - ÐMaps v0.1 title rules and official H3 4.2.1 cells are specified in this repo.
 - ÐLand v0.1 is a Launch Draft with complete rules, schemas, and worked vectors. Marker: p="Ð:LAND".
 - Mainnet and testnet activation heights are reserved (null in docs/INDEXING.md) until a dated revision announces them. Regtest activates at 0. A live mainnet index is empty until then.
@@ -25,7 +27,7 @@ Status (see also README.md Start here, and AGENTS.md):
 - reference/apply.mjs, reference/checkpoint.mjs, reference/dmaps-geo.mjs
 - Standing/1 (protocols/dland/standing.mjs) is non-consensus; not in the checkpoint
 
-## HTTP (Dogex)
+## HTTP (Dogex — read convenience, not authority)
 - docs/API.md, docs/openapi.yaml
 - Endpoints: /api/doginals/dogemaps/claims, /r/dogemap/block/{block}, /api/land/parcel/{block}, /packs, /builds, /anchors, /cell/{h3}, /district/{h3}, /region/{h3}, /holder/{address}, /api/dmaps/checkpoint/{height}
 

@@ -4,6 +4,13 @@ Canonical public specification: https://github.com/jonheaven/dmaps
 
 This file is a map of the tree and a statement of current status. It does not tell you whether someone should or should not implement from it. For the same facts written for people, see the **Start here** section of `README.md`.
 
+## On-chain authority
+
+Anchors (real-world land claims) are Dogecoin inscriptions. A valid pin is a committed reveal that spends the current parcel title UTXO. There is no centralized database of claims. Any indexer that follows `docs/INDEXING.md` recomputes the same state from the chain and must match the published `dmaps-checkpoint/1` hashes. The Dogex HTTP API documented in `docs/API.md` is a read convenience over that index, not a source of authority. If indexers disagree, the chain and this specification decide.
+
+**End-to-end on-chain flow.** The current holder of a v1 ÐMaps title broadcasts a single-transaction committed inscription whose body is a ÐLand `op: "anchor"` (parcel, title id, res-12 `h3_cell`) and whose inputs include the title's current satpoint. After confirmation, every conformant indexer applies the same rules (authorization, commit-first, cooldown). The occupation of that cell is then a fact of the chain, readable by scanning blocks or, optionally, by querying any indexer and comparing checkpoint hashes.
+
+
 ## Status
 
 | Item | State |
@@ -11,7 +18,7 @@ This file is a map of the tree and a statement of current status. It does not te
 | ÐMaps v0.1 title rules, schemas, and official H3 4.2.1 cells | Specified in `protocols/dogemaps/`. Official cells are in §7.5 and `protocols/dogemaps/vectors/conformance.json`. |
 | ÐLand v0.1 packs, builds, anchors, holder-spend authorization, districts/regions | Launch Draft, with a complete rule set, schemas, examples, and worked vectors in `protocols/dland/` and `vectors/indexer-state.json`. The on-chain marker is `p: "Ð:LAND"`. |
 | Deterministic indexing, reorgs, `dmaps-checkpoint/1` | Normative in `docs/INDEXING.md`. Conformant indexers must match the listed checkpoint hashes. |
-| HTTP API | Documented in `docs/API.md` and `docs/openapi.yaml` (the Dogex contract). |
+| HTTP API | Documented in `docs/API.md` and `docs/openapi.yaml`. Dogex (and any conformant indexer) may expose these read routes; they are a convenience, not authority. |
 | Mainnet / testnet activation heights | **Reserved.** `docs/INDEXING.md` currently lists them as `null`. Regtest activates at height `0`. A live mainnet index is empty until a dated revision names a height. |
 | This repository's contents | Spec, docs, schemas, vectors, and reference JavaScript only. No indexer source, secrets, or `.env` files. |
 | Land Standing/1 and neighbor `gridDisk` counts | Non-consensus / advisory. They MUST NOT appear in the checkpoint hash. If neighbors are not computed, `neighbors_indexed` is `false`. |

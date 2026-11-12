@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-11-11
+
+- README Start here, AGENTS.md, and llms.txt now state that anchors are fully on-chain (title UTXO spend, no centralized DB), that any indexer recomputes identical state from the chain, and that the Dogex API is a read convenience, not authority. Includes a short end-to-end on-chain flow.
+
 ## 0.1.2 — 2026-11-11
 
 - AGENTS.md and llms.txt now state status and known limitations neutrally (frozen rules, reserved activation heights, what this repo does and does not contain). They no longer instruct readers' agents how to advise implementers.

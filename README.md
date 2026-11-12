@@ -6,6 +6,10 @@
 
 ## Start here
 
+Real-world land claims (**anchors**) are **fully on-chain**. Each pin is a Dogecoin inscription whose reveal spends the current ÐMaps parcel **title UTXO**. There is no centralized database, registrar, or application server that grants or stores the claim. Any conformant indexer recomputes **identical** protocol state from the chain and [docs/INDEXING.md](docs/INDEXING.md) alone, and MUST agree on the `dmaps-checkpoint/1` hash. The [Dogex HTTP API](docs/API.md) is a **read convenience** over that recomputed index — it is not an authority.
+
+**End-to-end on-chain flow.** The holder of a v1 title (the inscription that first validly claimed a `block_height`) chooses a resolution-12 H3 cell and broadcasts a single-transaction *committed* inscription with a ÐLand `op: "anchor"` body that names that parcel, the title id, and the cell. The same transaction spends the title's current satpoint. Once the transaction is in a block, every indexer applies the same validity and commit-first rules; the cell is occupied (or the op is ignored if unauthorized, on cooldown, or beaten to the cell). A later reader can verify the pin by scanning the chain, or by asking any indexer and, if they want a second opinion, comparing checkpoint hashes. Disagreement is settled by the chain and this spec, not by a particular API host.
+
 ### What is stable now vs what is waiting
 
 | Feature | Status | Implement today? |
@@ -15,7 +19,7 @@
 | ÐLand packs, holder-gated builds, res-12 anchors, districts/regions | **Launch Draft, complete.** [protocols/dland/spec.md](protocols/dland/spec.md) has the threat model, auth, and ops. Worked state in [vectors/indexer-state.json](vectors/indexer-state.json) | **Yes** — treat `"p": "Ð:LAND"` as load-bearing |
 | Holder authorization (spend current title UTXO + committed reveal) | **Frozen** | **Yes.** Signature-only auth is invalid |
 | Deterministic indexing, reorgs, `dmaps-checkpoint/1` | **Normative** [docs/INDEXING.md](docs/INDEXING.md). Independent indexers MUST match these hashes | **Yes** (`npm test`) |
-| Dogex HTTP API (claims, parcels, packs, builds, anchors, cells, districts, holders, checkpoints) | **Documented** in [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml). Dogex exposes these routes | **Yes.** On mainnet the index is empty until a height is announced |
+| Dogex HTTP API (claims, parcels, packs, builds, anchors, cells, districts, holders, checkpoints) | **Documented** in [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml). Read convenience over a recomputed index, **not authority** | **Yes.** On mainnet the index is empty until a height is announced |
 | Mainnet / testnet activation height | **Not announced** (`null` in INDEXING.md). Regtest = `0` | Indexers MUST stay idle on mainnet until a dated revision names a height. Use regtest or a local override for development only |
 | Land Standing/1, neighbor `gridDisk` counts, district-majority skins | **Non-consensus / advisory.** Not in the checkpoint | Optional. If you cannot compute neighbors, set `neighbors_indexed: false` |
 | Protocol display name “ÐLand” | Cosmetic. A rename would be a **dated revision with a new marker**, not a silent change | Do not invent a second marker. Emit `"p": "Ð:LAND"` |
@@ -62,7 +66,7 @@ The reveal transaction MUST:
 
 Builds use the same authorization, with [protocols/dland/examples/build-valid.json](protocols/dland/examples/build-valid.json), after a `pack` inscription exists. New titles use [protocols/dogemaps/examples/claim-valid.json](protocols/dogemaps/examples/claim-valid.json) (official cell `89e98d184b7ffff` for height 0, res 9).
 
-**3. Confirm** with `GET /api/land/parcel/{block}` and `GET /api/land/cell/{h3}`, or by matching `GET /api/dmaps/checkpoint/{height}` against another indexer.
+**3. Confirm** on-chain (the inscription and the title spend are in a block) or, as a convenience, via `GET /api/land/parcel/{block}` and `GET /api/land/cell/{h3}`. Independent indexers can be checked against each other with `GET /api/dmaps/checkpoint/{height}` — the hash is SHA-256 of the checkpoint text derived from the chain, not a value issued by Dogex.
 
 ### Run the conformance tests
 
