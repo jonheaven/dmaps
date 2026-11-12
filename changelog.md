@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-11-11
+
+- AGENTS.md and llms.txt now state status and known limitations neutrally (frozen rules, reserved activation heights, what this repo does and does not contain). They no longer instruct readers' agents how to advise implementers.
+
 ## 0.1.1 — 2026-11-11
 
 - README **Start here**: status table (frozen vs reserved), minimal dApp path (read Dogex API, inscribe an anchor), `npm test` as the conformance entry point.

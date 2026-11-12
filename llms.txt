@@ -2,19 +2,25 @@
 
 Canonical public spec: https://github.com/jonheaven/dmaps
 License: MIT
-Implementable now. Start at README.md (Start here). Mainnet activation height is the only reserved item (null until announced in docs/INDEXING.md).
+
+Status (see also README.md Start here, and AGENTS.md):
+- ÐMaps v0.1 title rules and official H3 4.2.1 cells are specified in this repo.
+- ÐLand v0.1 is a Launch Draft with complete rules, schemas, and worked vectors. Marker: p="Ð:LAND".
+- Mainnet and testnet activation heights are reserved (null in docs/INDEXING.md) until a dated revision announces them. Regtest activates at 0. A live mainnet index is empty until then.
+- This repo is spec, docs, schemas, vectors, and reference JavaScript. It does not include indexer source.
+- Standing/1 and neighbor counts are non-consensus and are not in the checkpoint hash.
 
 ## Protocols
-- ÐMaps, p="Ð:MAPS", v0.1 (rules frozen): protocols/dogemaps/spec.md
+- ÐMaps, p="Ð:MAPS", v0.1: protocols/dogemaps/spec.md
   FCFS title per block_height. Derived H3 overlay (default res 9) from SHA256d of DOGEMAPS/1/GEO/block_height=N/h3_res=R/ then H3 4.2.1 latLngToCell.
   Official cells: (0,9)=89e98d184b7ffff (1,9)=8901a2b054fffff (12345,8)=88f166ced3fffff
-- ÐLand, p="Ð:LAND", Launch Draft v0.1 (complete + vectors): protocols/dland/spec.md
+- ÐLand, p="Ð:LAND", Launch Draft v0.1: protocols/dland/spec.md
   pack (permissionless, id=inscription id); build (holder-gated, travels with title, supersede/remove/seal); anchor (chosen H3 res 12, unique, commit-first W=30, reanchor cooldown 144).
   Authorization: committed reveal AND spend of current title UTXO. No leftover signatures after transfer.
   District=parent res 7 (Founder badge); Region=parent res 4. Not legal property.
 
 ## Indexing (must be identical across implementations)
-- docs/INDEXING.md — order, validity, reorg, activation constants (mainnet null until announced; regtest 0), dmaps-checkpoint/1, SHA-256
+- docs/INDEXING.md — order, validity, reorg, activation constants (mainnet/testnet null until announced; regtest 0), dmaps-checkpoint/1, SHA-256
 - vectors/indexer-state.json — expected checkpoint_hash after each abstract block
 - reference/apply.mjs, reference/checkpoint.mjs, reference/dmaps-geo.mjs
 - Standing/1 (protocols/dland/standing.mjs) is non-consensus; not in the checkpoint
@@ -26,8 +32,8 @@ Implementable now. Start at README.md (Start here). Mainnet activation height is
 ## Primer
 - docs/h3.md — what H3 is, resolution table, derived vs chosen cells, h3-js 4.2.1 examples
 
-## Do not
-- Invent pack_claim, tithes, or 𝕏 reputation discounts
-- Mix ÐMaps derived cells with ÐLand pins
-- Treat anchors as deeds
-- Include secrets, indexer source, or .env in this repository
+## Out of scope in the normative specs
+- pack_claim, tithes, or reputation discounts (not specified)
+- Mixing ÐMaps derived cells with ÐLand pins
+- Treating anchors as deeds
+- Indexer source, secrets, or .env files (not in this repository)
