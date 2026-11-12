@@ -1,0 +1,179 @@
+openapi: 3.1.0
+info:
+  title: Dogex ÐMaps / ÐLand API
+  version: "0.1"
+  description: Read-only indexer API so a dApp can resolve titles, packs, builds, anchors, cells, districts, holders, and checkpoints. Normative behavior is docs/API.md and docs/INDEXING.md.
+  license:
+    name: MIT
+servers:
+  - url: /api
+    description: Dogex origin (same host as /api/doginals/capabilities)
+paths:
+  /doginals/capabilities:
+    get:
+      summary: Protocol capabilities and activation
+      responses:
+        "200":
+          description: Capabilities document
+  /land/status:
+    get:
+      summary: LAND activation, tip, H3 constants
+      responses:
+        "200": { description: Status }
+  /doginals/dogemaps/claims:
+    get:
+      summary: Page of canonical ÐMaps v1 claims
+      parameters:
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        "200": { description: Claim list }
+  /doginals/r/dogemap/block/{block}:
+    get:
+      summary: Canonical title for one block height
+      parameters:
+        - in: path
+          name: block
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: Claim }
+        "404": { description: No canonical title }
+  /doginals/r/dogemap/list:
+    get:
+      summary: Alias of /doginals/dogemaps/claims
+      responses:
+        "200": { description: Claim list }
+  /doginals/r/dogemap/count:
+    get:
+      summary: Count of canonical titles
+      responses:
+        "200": { description: "{ count }" }
+  /doginals/address/{address}/dogemaps:
+    get:
+      summary: Titles currently held by an address
+      parameters:
+        - in: path
+          name: address
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Holder's claims }
+  /land/parcel/{block}:
+    get:
+      summary: Parcel title, builds, anchor, founder, standing
+      parameters:
+        - in: path
+          name: block
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: Parcel }
+        "404": { description: No title }
+  /land/packs:
+    get:
+      summary: List packs
+      parameters:
+        - in: query
+          name: after
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 100, maximum: 500 }
+      responses:
+        "200": { description: Pack list }
+  /land/packs/{id}:
+    get:
+      summary: One pack by inscription id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Pack }
+        "404": { description: Unknown pack }
+  /land/builds:
+    get:
+      summary: Live builds
+      parameters:
+        - in: query
+          name: parcel
+          schema: { type: integer }
+        - in: query
+          name: pack
+          schema: { type: string }
+      responses:
+        "200": { description: Builds }
+  /land/anchors:
+    get:
+      summary: Live cell occupants
+      responses:
+        "200": { description: Anchors }
+  /land/cell/{h3}:
+    get:
+      summary: Occupancy of one res-12 cell
+      parameters:
+        - in: path
+          name: h3
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Cell }
+        "400": { description: Bad H3 }
+  /land/district/{h3}:
+    get:
+      summary: District founder and live parcels
+      parameters:
+        - in: path
+          name: h3
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: District }
+  /land/region/{h3}:
+    get:
+      summary: Region rollup
+      parameters:
+        - in: path
+          name: h3
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Region }
+  /land/holder/{address}:
+    get:
+      summary: Titles, anchors, and builds for a holder
+      parameters:
+        - in: path
+          name: address
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Holder inventory }
+        "400": { description: Bad address }
+  /dmaps/checkpoint/{height}:
+    get:
+      summary: Canonical checkpoint text and SHA-256
+      parameters:
+        - in: path
+          name: height
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: Checkpoint }
+        "404": { description: Height not indexed }
+  /land/checkpoint/{height}:
+    get:
+      summary: Alias of /dmaps/checkpoint/{height}
+      parameters:
+        - in: path
+          name: height
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: Checkpoint }

@@ -1,0 +1,9 @@
+{
+  "name": "dland-spec",
+  "private": true,
+  "type": "module",
+  "description": "ÐLand reference codec and standing/1 tests",
+  "scripts": {
+    "test": "node --test codec.test.mjs standing.test.mjs"
+  }
+}

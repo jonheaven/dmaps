@@ -1,0 +1,32 @@
+# ÐMaps + ÐLand (Dogecoin)
+
+Canonical public spec: https://github.com/jonheaven/dmaps
+License: MIT
+
+## Protocols
+- ÐMaps, p="Ð:MAPS", launch draft v0.1: protocols/dogemaps/spec.md
+  FCFS title per block_height. Derived H3 overlay (default res 9) from SHA256d of DOGEMAPS/1/GEO/block_height=N/h3_res=R/ then H3 4.2.1 latLngToCell.
+  Official cells: (0,9)=89e98d184b7ffff (1,9)=8901a2b054fffff (12345,8)=88f166ced3fffff
+- ÐLand, p="Ð:LAND", LAUNCH DRAFT v0.1: protocols/dland/spec.md
+  pack (permissionless, id=inscription id); build (holder-gated, travels with title, supersede/remove/seal); anchor (chosen H3 res 12, unique, commit-first W=30, reanchor cooldown 144).
+  Authorization: committed reveal AND spend of current title UTXO. No leftover signatures after transfer.
+  District=parent res 7 (Founder badge); Region=parent res 4. Not legal property.
+
+## Indexing (must be identical across implementations)
+- docs/INDEXING.md — order, validity, reorg, activation constants (mainnet null until announced; regtest 0), dmaps-checkpoint/1, SHA-256
+- vectors/indexer-state.json — expected checkpoint_hash after each abstract block
+- reference/apply.mjs, reference/checkpoint.mjs, reference/dmaps-geo.mjs
+- Standing/1 (protocols/dland/standing.mjs) is non-consensus; not in the checkpoint
+
+## HTTP (Dogex)
+- docs/API.md, docs/openapi.yaml
+- Endpoints: /api/doginals/dogemaps/claims, /r/dogemap/block/{block}, /api/land/parcel/{block}, /packs, /builds, /anchors, /cell/{h3}, /district/{h3}, /region/{h3}, /holder/{address}, /api/dmaps/checkpoint/{height}
+
+## Primer
+- docs/h3.md — what H3 is, resolution table, derived vs chosen cells, h3-js 4.2.1 examples
+
+## Do not
+- Invent pack_claim, tithes, or 𝕏 reputation discounts
+- Mix ÐMaps derived cells with ÐLand pins
+- Treat anchors as deeds
+- Include secrets, indexer source, or .env in this repository

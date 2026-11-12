@@ -1,0 +1,125 @@
+{
+  "spec": "dmaps-checkpoint/1",
+  "h3": "4.2.1",
+  "network": "regtest",
+  "maps_activation": 0,
+  "land_activation": 0,
+  "description": "Worked indexer log. Independent indexers and Dogex MUST emit the listed checkpoint_hash after each height. Events are an abstract encoding of confirmed inscriptions (see docs/INDEXING.md). T1/T2: non-holder and stale-holder builds are in the log and MUST NOT change state.",
+  "blocks": [
+    {
+      "height": 100,
+      "events": [
+        {
+          "type": "maps_claim",
+          "block_height": 0,
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0"
+        }
+      ],
+      "checkpoint_hash": "5ed1c7b39520418905fcdb85f507594aaa74d30215d79e47fdfcb656e9f20856"
+    },
+    {
+      "height": 101,
+      "events": [
+        {
+          "type": "pack",
+          "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+          "name": "street-scene",
+          "version": "1.0.0"
+        }
+      ],
+      "checkpoint_hash": "16f3a5bc8fa49e329158d536d3294477ebebb7a6c04b1b292d5933721d0ff938"
+    },
+    {
+      "height": 102,
+      "events": [
+        {
+          "type": "build",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+          "id": "1111111111111111111111111111111111111111111111111111111111111111i0",
+          "committed": true,
+          "spends_title_outpoint": true,
+          "content": {
+            "model": "ipfs://z"
+          },
+          "tx_index": 1
+        },
+        {
+          "type": "build",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+          "id": "2222222222222222222222222222222222222222222222222222222222222222i0",
+          "committed": true,
+          "spends_title_outpoint": false,
+          "content": {
+            "model": "hacked"
+          },
+          "tx_index": 2,
+          "comment": "T1 non-holder"
+        }
+      ],
+      "checkpoint_hash": "e3542c975e1bfa549dd5103245a37302f12fe0b602a26cca41cf32f48caa5ebf"
+    },
+    {
+      "height": 103,
+      "events": [
+        {
+          "type": "transfer",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "tx_index": 1
+        },
+        {
+          "type": "build",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+          "id": "3333333333333333333333333333333333333333333333333333333333333333i0",
+          "committed": true,
+          "spends_title_outpoint": true,
+          "stale_outpoint": true,
+          "content": {
+            "model": "stale"
+          },
+          "tx_index": 2,
+          "comment": "T2 stale holder"
+        }
+      ],
+      "checkpoint_hash": "8476dff60c6b816a5ce777b7be1cc8eacdddeda7296249290021e8cafcf20b35"
+    },
+    {
+      "height": 104,
+      "events": [
+        {
+          "type": "anchor",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0",
+          "h3_cell": "8c28308280f37ff",
+          "committed": true,
+          "spends_title_outpoint": true,
+          "from_commit": true,
+          "priority": {
+            "height": 103,
+            "tx_index": 0,
+            "vout": 0
+          },
+          "tx_index": 1
+        }
+      ],
+      "checkpoint_hash": "ad2d30ec3360402444b94bd63b7b498120d47899152f4e2ea19558d29bc8b5bb",
+      "expect": {
+        "title_0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "live_cell": "8c28308280f37ff",
+        "district": "87283082bffffff",
+        "founder_parcel": 0,
+        "founder_final": false,
+        "build_content": {
+          "model": "ipfs://z"
+        }
+      }
+    }
+  ]
+}

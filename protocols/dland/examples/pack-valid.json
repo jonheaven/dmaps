@@ -1,0 +1,12 @@
+{
+  "p": "Ð:LAND",
+  "v": "1",
+  "op": "pack",
+  "name": "street-scene",
+  "version": "1.0.0",
+  "schema": {
+    "type": "object",
+    "properties": { "model": { "type": "string" } }
+  },
+  "note": "3D props for a parcel"
+}

@@ -1,0 +1,69 @@
+{
+  "$comment": "ÐMaps v1 structural + official H3 cells (H3 4.2.1). FCFS, stake, and reorg behavior: docs/INDEXING.md and vectors/indexer-state.json.",
+  "version": "1",
+  "protocol": "Ð:MAPS",
+  "h3_library": "4.2.1",
+  "vectors": [
+    {
+      "id": "DOGEMAPS-001",
+      "description": "Valid claim operation shape (§6.1) for height 0 with official res-9 cell",
+      "schema": "schemas/operation.schema.json",
+      "expect": "pass",
+      "payload": {
+        "p": "Ð:MAPS",
+        "v": "1",
+        "op": "claim",
+        "chain": "dogecoin",
+        "title": {
+          "block_height": 0,
+          "tier": "standard"
+        },
+        "geo": {
+          "h3_res": 9,
+          "h3_cell": "89e98d184b7ffff"
+        },
+        "fair": {
+          "stake_koinu": "10000000",
+          "stake_burn": true
+        }
+      }
+    },
+    {
+      "id": "DOGEMAPS-002",
+      "description": "Reject wrong protocol marker",
+      "schema": "schemas/operation.schema.json",
+      "expect": "fail",
+      "expected_reason": "invalid_const: p",
+      "payload": {
+        "p": "dogemap",
+        "v": "1",
+        "op": "claim",
+        "chain": "dogecoin"
+      }
+    },
+    {
+      "id": "DOGEMAPS-GEO-0-9",
+      "description": "Official derived cell for (block_height=0, h3_res=9)",
+      "expect": "cell",
+      "block_height": 0,
+      "h3_res": 9,
+      "h3_cell": "89e98d184b7ffff"
+    },
+    {
+      "id": "DOGEMAPS-GEO-1-9",
+      "description": "Official derived cell for (block_height=1, h3_res=9)",
+      "expect": "cell",
+      "block_height": 1,
+      "h3_res": 9,
+      "h3_cell": "8901a2b054fffff"
+    },
+    {
+      "id": "DOGEMAPS-GEO-12345-8",
+      "description": "Official derived cell for (block_height=12345, h3_res=8)",
+      "expect": "cell",
+      "block_height": 12345,
+      "h3_res": 8,
+      "h3_cell": "88f166ced3fffff"
+    }
+  ]
+}

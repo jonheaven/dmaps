@@ -1,0 +1,9 @@
+{
+  "name": "dmaps-spec",
+  "private": true,
+  "type": "module",
+  "description": "Canonical public spec for ÐMaps and ÐLand",
+  "scripts": {
+    "test": "node --test protocols/dland/codec.test.mjs protocols/dland/standing.test.mjs reference/indexer-state.test.mjs"
+  }
+}

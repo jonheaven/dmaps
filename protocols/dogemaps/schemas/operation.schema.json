@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dogemaps/v1/operation",
+  "title": "ÐMaps (p: Ð:MAPS) operation",
+  "type": "object",
+  "required": [
+    "p",
+    "v",
+    "op",
+    "chain"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "p": {
+      "const": "Ð:MAPS"
+    },
+    "v": {
+      "const": "1"
+    },
+    "op": {
+      "enum": [
+        "claim",
+        "upgrade",
+        "link",
+        "params"
+      ]
+    },
+    "chain": {
+      "const": "dogecoin"
+    },
+    "title": {
+      "type": "object",
+      "required": [
+        "block_height",
+        "tier"
+      ],
+      "properties": {
+        "block_height": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tier": {
+          "const": "standard"
+        }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "required": [
+        "h3_res",
+        "h3_cell"
+      ],
+      "properties": {
+        "h3_res": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "h3_cell": {
+          "type": "string",
+          "pattern": "^8[0-9a-f]{14}$"
+        }
+      }
+    },
+    "fair": {
+      "type": "object",
+      "properties": {
+        "stake_koinu": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "stake_burn": {
+          "const": true
+        }
+      }
+    },
+    "parent": {
+      "type": "object",
+      "properties": {
+        "inscription_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}i[0-9]+$"
+        },
+        "relation": {
+          "type": "string",
+          "maxLength": 256
+        }
+      }
+    },
+    "of": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}i[0-9]+$"
+    },
+    "hrefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rel",
+          "uri"
+        ],
+        "properties": {
+          "rel": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

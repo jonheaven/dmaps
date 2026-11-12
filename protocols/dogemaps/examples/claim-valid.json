@@ -1,0 +1,18 @@
+{
+  "p": "Ð:MAPS",
+  "v": "1",
+  "op": "claim",
+  "chain": "dogecoin",
+  "title": {
+    "block_height": 0,
+    "tier": "standard"
+  },
+  "geo": {
+    "h3_res": 9,
+    "h3_cell": "89e98d184b7ffff"
+  },
+  "fair": {
+    "stake_koinu": "10000000",
+    "stake_burn": true
+  }
+}

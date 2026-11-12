@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dland/v1/operation",
+  "title": "ÐLand (p: Ð:LAND) operation",
+  "type": "object",
+  "required": ["p", "v", "op"],
+  "additionalProperties": true,
+  "properties": {
+    "p": { "const": "Ð:LAND" },
+    "v": { "const": "1" },
+    "op": { "enum": ["pack", "build", "anchor"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "version": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "schema": { "type": "object" },
+    "schema_uri": { "type": "string", "minLength": 1 },
+    "note": { "type": "string", "maxLength": 500 },
+    "supersedes": { "type": "string", "pattern": "^[0-9a-f]{64}i[0-9]+$" },
+    "parcel": { "type": "integer", "minimum": 0 },
+    "title": { "type": "string", "pattern": "^[0-9a-f]{64}i[0-9]+$" },
+    "pack": { "type": "string", "pattern": "^[0-9a-f]{64}i[0-9]+$" },
+    "content": { "type": "object" },
+    "remove": { "type": "boolean" },
+    "seal": { "type": "boolean" },
+    "seal_all": { "type": "boolean" },
+    "h3_res": { "const": 12 },
+    "h3_cell": { "type": "string", "pattern": "^8[0-9a-f]{14}$" },
+    "place": { "type": "string", "pattern": "^[0-9a-f]{64}i[0-9]+$" },
+    "clear": { "type": "boolean" },
+    "bitworkc": { "type": "string" },
+    "bitworkr": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "op": { "const": "pack" } }, "required": ["op"] },
+      "then": {
+        "required": ["name", "version"],
+        "anyOf": [{ "required": ["schema"] }, { "required": ["schema_uri"] }]
+      }
+    },
+    {
+      "if": { "properties": { "op": { "const": "build" } }, "required": ["op"] },
+      "then": { "required": ["parcel", "title", "pack"] }
+    },
+    {
+      "if": { "properties": { "op": { "const": "anchor" } }, "required": ["op"] },
+      "then": {
+        "required": ["parcel", "title"],
+        "oneOf": [
+          { "required": ["h3_cell"], "properties": { "clear": { "not": { "const": true } } } },
+          { "properties": { "clear": { "const": true } }, "required": ["clear"], "not": { "required": ["h3_cell"] } }
+        ]
+      }
+    }
+  ]
+}

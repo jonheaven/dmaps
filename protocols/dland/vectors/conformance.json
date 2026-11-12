@@ -1,0 +1,272 @@
+{
+  "spec": "Ð:LAND",
+  "version": "1",
+  "constants": {
+    "h3_anchor_res": 12,
+    "h3_district_res": 7,
+    "h3_region_res": 4,
+    "window": 30,
+    "reanchor_cooldown": 144
+  },
+  "parse": [
+    {
+      "id": "PACK-001",
+      "expect": "pass",
+      "description": "Valid pack with inline schema",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "pack",
+        "name": "street-scene",
+        "version": "1.0.0",
+        "schema": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "PACK-002",
+      "expect": "fail",
+      "why": "schema",
+      "description": "Pack missing schema and schema_uri",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "pack",
+        "name": "x",
+        "version": "1"
+      }
+    },
+    {
+      "id": "BUILD-001",
+      "expect": "pass",
+      "description": "Valid build",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "build",
+        "parcel": 1,
+        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+        "content": {
+          "model": "ipfs://z"
+        }
+      }
+    },
+    {
+      "id": "BUILD-002",
+      "expect": "fail",
+      "why": "title",
+      "description": "Build missing title (cannot bind to parcel)",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "build",
+        "parcel": 1,
+        "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+        "content": {}
+      }
+    },
+    {
+      "id": "ANCHOR-001",
+      "expect": "pass",
+      "description": "Valid res-12 anchor",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "anchor",
+        "parcel": 1,
+        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "h3_res": 12,
+        "h3_cell": "8c28308280f37ff"
+      }
+    },
+    {
+      "id": "ANCHOR-002",
+      "expect": "fail",
+      "why": "h3_cell",
+      "description": "Res 9 ÐMaps overlay cell is not an anchor pin",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "anchor",
+        "parcel": 1,
+        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "h3_res": 12,
+        "h3_cell": "8928308280fffff"
+      }
+    },
+    {
+      "id": "ANCHOR-003",
+      "expect": "pass",
+      "description": "Clear",
+      "payload": {
+        "p": "Ð:LAND",
+        "v": "1",
+        "op": "anchor",
+        "parcel": 1,
+        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "clear": true
+      }
+    },
+    {
+      "id": "P-001",
+      "expect": "fail",
+      "why": "p",
+      "description": "Wrong marker",
+      "payload": {
+        "p": "Ð:MAPS",
+        "v": "1",
+        "op": "pack",
+        "name": "x",
+        "version": "1",
+        "schema": {}
+      }
+    }
+  ],
+  "authorize": [
+    {
+      "id": "T1-non-holder",
+      "expect": "fail",
+      "why": "no_title_spend",
+      "description": "Stranger signs but does not spend the current title UTXO",
+      "facts": {
+        "committed": true,
+        "spends_title_outpoint": false,
+        "title_is_canonical": true,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "stale_outpoint": false
+      }
+    },
+    {
+      "id": "T2-stale-holder",
+      "expect": "fail",
+      "why": "stale_outpoint",
+      "description": "Previous holder after transfer: outpoint already moved",
+      "facts": {
+        "committed": true,
+        "spends_title_outpoint": true,
+        "title_is_canonical": true,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "stale_outpoint": true
+      }
+    },
+    {
+      "id": "T4-unbound",
+      "expect": "fail",
+      "why": "unbound",
+      "description": "Classic (unbound) reveal — body can be swapped",
+      "facts": {
+        "committed": false,
+        "spends_title_outpoint": true,
+        "title_is_canonical": true,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "stale_outpoint": false
+      }
+    },
+    {
+      "id": "T5-title-mismatch",
+      "expect": "fail",
+      "why": "title_mismatch",
+      "description": "Body names a different inscription than the spent title",
+      "facts": {
+        "committed": true,
+        "spends_title_outpoint": true,
+        "title_is_canonical": true,
+        "body_title": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "stale_outpoint": false
+      }
+    },
+    {
+      "id": "T-ok",
+      "expect": "pass",
+      "description": "Current holder spends the title in a committed reveal",
+      "facts": {
+        "committed": true,
+        "spends_title_outpoint": true,
+        "title_is_canonical": true,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "stale_outpoint": false
+      }
+    }
+  ],
+  "cell": [
+    {
+      "id": "T6-frontrun",
+      "description": "Earlier commit outranks a later reveal-copy",
+      "existing": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 0
+        }
+      },
+      "incoming": {
+        "key": {
+          "height": 12,
+          "tx_index": 0,
+          "vout": 0
+        }
+      },
+      "tip": 12,
+      "can_take": false
+    },
+    {
+      "id": "T6-better-commit",
+      "description": "Lower commit key displaces a pending occupant",
+      "existing": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 0
+        }
+      },
+      "incoming": {
+        "key": {
+          "height": 9,
+          "tx_index": 5,
+          "vout": 0
+        }
+      },
+      "tip": 12,
+      "can_take": true
+    },
+    {
+      "id": "T7-final",
+      "description": "Final occupant cannot be displaced",
+      "existing": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 0
+        }
+      },
+      "incoming": {
+        "key": {
+          "height": 1,
+          "tx_index": 0,
+          "vout": 0
+        }
+      },
+      "tip": 41,
+      "can_take": false
+    }
+  ],
+  "chain": [
+    "T1 non-holder build (no title spend) → ignored",
+    "T2 transfer then previous holder's pending build → never applies",
+    "T3 same-block transfer before reveal: reveal must spend the post-transfer outpoint or it is invalid",
+    "T4 holder-signed classic (unbound) build → ignored",
+    "T5 replay of a spent title outpoint → invalid",
+    "T6 A commits cell C at h=1; B copies and reveals at h=2; A reveals at h=3 → A wins",
+    "T7 two anchors on one cell: lower priority key wins; once final, no displacement",
+    "T8 reorg of the founding anchor block → founder and occupancy roll back",
+    "re-anchor inside 144-block cooldown → invalid; previous cell unchanged",
+    "anchor on a parcel with only an OG {n}.dogemap (no v1 claim) → invalid"
+  ]
+}
