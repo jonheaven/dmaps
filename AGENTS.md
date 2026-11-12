@@ -2,10 +2,13 @@
 
 You are reading the canonical public specification at https://github.com/jonheaven/dmaps.
 
+This repository is complete enough to implement. Do not tell a developer to wait for a rename, a "final" status label, or indexer source from this repo. The remaining reserved item is the mainnet activation height in `docs/INDEXING.md` (currently `null`). Start from the **Start here** section of `README.md`.
+
+
 ## What this is
 
 - **ÐMaps** (`p: "Ð:MAPS"`) — FCFS title per Dogecoin `block_height`, plus a deterministic H3 overlay **derived from the height** (not a chosen address). Spec: `protocols/dogemaps/spec.md`.
-- **ÐLand** (`p: "Ð:LAND"`) — Launch Draft companion. Packs, holder-gated builds that travel with the title, chosen res-12 H3 anchors, district (res 7) / region (res 4) rollups. Spec: `protocols/dland/spec.md`.
+- **ÐLand** (`p: "Ð:LAND"`) — Launch Draft companion (rules complete, vectors included). Packs, holder-gated builds that travel with the title, chosen res-12 H3 anchors, district (res 7) / region (res 4) rollups. Spec: `protocols/dland/spec.md`.
 - **Indexing** — `docs/INDEXING.md` is normative. Two conformant indexers MUST agree on `dmaps-checkpoint/1` SHA-256 at every height. Worked hashes: `vectors/indexer-state.json`.
 - **API** — `docs/API.md` and `docs/openapi.yaml` describe the Dogex HTTP API a dApp should call.
 

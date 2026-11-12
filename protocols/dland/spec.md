@@ -5,11 +5,11 @@
 **Version:** 0.1
 **Status:** Launch Draft
 **Normative language:** RFC 2119
-**Reference indexer:** dogex `src/indexer/updater/dland.rs` (activation `DOGEX_LAND_ACTIVATION_HEIGHT`, off on mainnet/testnet until announced; `0` on regtest)
+**Reference indexer:** Dogex, implementing this document and [../../docs/INDEXING.md](../../docs/INDEXING.md) (activation `DOGEX_LAND_ACTIVATION_HEIGHT`, off on mainnet/testnet until announced; `0` on regtest)
 **Companion:** [ÐMaps](../dogemaps/spec.md) (`p: "Ð:MAPS"`) remains the canonical block-title layer. ÐLand does **not** mint, override, or displace a ÐMaps claim.
-**License:** MIT ([LICENSE](LICENSE))
+**License:** MIT ([LICENSE](../../LICENSE))
 
-The name is renameable. ÐMaps stays the title protocol (one FCFS claim per `block_height`). ÐLand is the optional use layer: packs, holder-gated builds, and real-world H3 anchors.
+The on-chain marker is `p: "Ð:LAND"`. A rename would be a dated revision with a new marker; until then, emit this marker exactly. ÐMaps stays the title protocol (one FCFS claim per `block_height`). ÐLand is the optional use layer: packs, holder-gated builds, and real-world H3 anchors.
 
 ---
 

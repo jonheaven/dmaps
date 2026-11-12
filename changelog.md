@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-11-11
+
+- README **Start here**: status table (frozen vs reserved), minimal dApp path (read Dogex API, inscribe an anchor), `npm test` as the conformance entry point.
+- Replaced placeholder `<recomputed>` H3 cells in ÐMaps §15 examples with official H3 4.2.1 values, and extended the §7.5 official-cell table to match.
+- Clarified that Launch Draft means “implement these rules”; only the mainnet activation height is still reserved. The on-chain marker remains `"p": "Ð:LAND"` until a dated revision.
+- Scoped committed-envelope links that pointed at files not vendored in this repository.
+
 ## 0.1.0 — 2026-11-11
 
 - First public canonical drop of ÐMaps v0.1 (Launch Draft), cleaned so schemas, examples, and official H3 4.2.1 cells match §6.1 / §7.

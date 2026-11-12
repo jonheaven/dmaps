@@ -2,7 +2,7 @@
 
 # Committed envelope — a P2SH lock that fixes the reveal bytes
 
-**Status:** Normative for ÐNS commit-first priority ( [DNS spec §5.7](https://github.com/jonheaven/dns)), Ð:MOD and [Ð:BOX](../protocols/box/spec.md). Recommended for every new Doginals mint.
+**Status:** Normative for ÐNS commit-first priority ([DNS spec §5.7](https://github.com/jonheaven/dns)), and for every ÐLand `build` and `anchor` in this repository. The same lock is used by Ð:MOD and Ð:BOX (specified in the Dogenals protocol set, not vendored here). Recommended for every new Doginals mint.
 **Reference:** any indexer that implements the redeem below. This document is the normative lock.
 
 ## 1. The problem with the classic lock
@@ -56,15 +56,8 @@ Multi-transaction bodies are not bound in v1 of this spec (each partial could be
 
 - Use a fresh one-time reveal key per inscription (doginals.lol and Dojak already do). Short bodies are pushed as literals, so a reused key would let an observer test guesses against the P2SH hash; a one-time key makes the hash unguessable without the key.
 - For anything ranked by commit position (names, box claims), **wait for one confirmation of the commit before broadcasting the reveal.** Until the reveal is public nobody can learn the content, and once the commit is in a block nobody can get an earlier commit for a copy.
-- Bitwork ([bitwork.md](bitwork.md)) is ground by changing an input `nSequence` of the commit (`bitworkc`) or the reveal (`bitworkr`) and re-signing, never the redeem: the redeem is fixed by the content.
+- Bitwork (optional; specified with ÐNS, not required for ÐLand) is ground by changing an input `nSequence` of the commit (`bitworkc`) or the reveal (`bitworkr`) and re-signing, never the redeem: the redeem is fixed by the content.
 
-## 5. Vectors
+## 5. Vectors and interpreter check
 
-See [committed-envelope.vectors.json](committed-envelope.vectors.json): pubkey `02` + `11`×32, pushes in scriptSig order, the expected redeem hex and its HASH160 (the P2SH hash the commit pays).
-
-## Interpreter check
-
-`web-com/scripts/committed-envelope-check/` builds classic and committed reveals for a ÐNS register,
-a 3-reveal Ð:MOD body and a Ð:BOX claim, and runs them through a legacy P2SH script
-interpreter (python-bitcoinlib). All of them verify. Flipping one content byte in the
-scriptSig is accepted for the classic lock and rejected (`OP_EQUALVERIFY`) for the committed lock.
+The lock in §2–§3 is fully specified in this document (redeem shape, size limits, and the indexer “bound” check). Worked redeem-hex vectors and an interpreter harness (classic vs committed reveals) live with the Dogenals committed-envelope package; they are **not vendored in this repository** and are not required to implement or verify the lock. Dogex flags a reveal `bound` when it matches §3.

@@ -1,6 +1,6 @@
 # ÐLand (expansion packs, builds, and real-world anchors)
 
-**Status: Launch Draft (v0.1)** — the rules here may still change before mainnet activation. The marker `"p": "Ð:LAND"` and the holder-spend authorization model are the parts to treat as load-bearing.
+**Status: Launch Draft (v0.1)** — the rules, schemas, and vectors in this folder are complete enough to implement. The remaining reserved item is the **mainnet activation height** (announced in `docs/INDEXING.md`). The marker `"p": "Ð:LAND"` and the holder-spend authorization model are load-bearing; a rename would be a dated revision with a new marker, not a reason to delay work.
 
 **Normative spec:** [spec.md](spec.md)
 
@@ -20,4 +20,3 @@ Shared indexing, checkpoints, and activation: [../../docs/INDEXING.md](../../doc
 npm test
 ```
 
-The name is renameable.

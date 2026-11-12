@@ -2,8 +2,12 @@
   "name": "dmaps-spec",
   "private": true,
   "type": "module",
-  "description": "Canonical public spec for ÐMaps and ÐLand",
+  "description": "Canonical public spec for \u00d0Maps and \u00d0Land",
   "scripts": {
     "test": "node --test protocols/dland/codec.test.mjs protocols/dland/standing.test.mjs reference/indexer-state.test.mjs"
-  }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
 }

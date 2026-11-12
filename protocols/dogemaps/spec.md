@@ -382,6 +382,10 @@ Implementers **MUST** use a binding to the **Uber H3 C library v4.2.1** (for exa
 | 0 | 9 | `89e98d184b7ffff` |
 | 1 | 9 | `8901a2b054fffff` |
 | 12345 | 8 | `88f166ced3fffff` |
+| 12345 | 9 | `8908ee22e9bffff` |
+| 5000000 | 9 | `89302600dafffff` |
+| 6000000 | 9 | `89229d2d337ffff` |
+| 999999999 | 9 | `890a0066b4bffff` |
 
 Reference: [../../reference/dmaps-geo.mjs](../../reference/dmaps-geo.mjs). Broader H3 primer: [../../docs/h3.md](../../docs/h3.md). Indexing and state-hash rules: [../../docs/INDEXING.md](../../docs/INDEXING.md).
 
@@ -557,8 +561,9 @@ reorg: rollback and rerun from common ancestor
 
 ## 15. Operation Examples (at least 10)
 
-All JSON is illustrative. `h3_cell` values are placeholders; indexers **MUST** recompute them with
-`DOGEMAPS_H3(block_height, h3_res)` and reject mismatches.
+Examples below use **official H3 4.2.1 cells** (also listed in §7.5). Indexers **MUST** recompute
+`h3_cell` with `DOGEMAPS_H3(block_height, h3_res)` and reject mismatches; the values in the JSON
+are not trusted, they are the expected result.
 
 ### E1 — Claim genesis block 0
 
@@ -569,7 +574,7 @@ All JSON is illustrative. `h3_cell` values are placeholders; indexers **MUST** r
   "op": "claim",
   "chain": "dogecoin",
   "title": { "block_height": 0, "tier": "standard" },
-  "geo": { "h3_res": 9, "h3_cell": "<recomputed>" },
+  "geo": { "h3_res": 9, "h3_cell": "89e98d184b7ffff" },
   "fair": { "stake_koinu": "20000000", "stake_burn": true }
 }
 ```
@@ -583,7 +588,7 @@ All JSON is illustrative. `h3_cell` values are placeholders; indexers **MUST** r
   "op": "claim",
   "chain": "dogecoin",
   "title": { "block_height": 5000000, "tier": "standard" },
-  "geo": { "h3_res": 9, "h3_cell": "<recomputed>" },
+  "geo": { "h3_res": 9, "h3_cell": "89302600dafffff" },
   "fair": { "stake_koinu": "10000000", "stake_burn": true },
   "note": "Standard claim for a mature block."
 }
@@ -598,7 +603,7 @@ All JSON is illustrative. `h3_cell` values are placeholders; indexers **MUST** r
   "op": "claim",
   "chain": "dogecoin",
   "title": { "block_height": 0, "tier": "standard" },
-  "geo": { "h3_res": 9, "h3_cell": "<recomputed>" },
+  "geo": { "h3_res": 9, "h3_cell": "89e98d184b7ffff" },
   "fair": { "stake_koinu": "50000000", "stake_burn": true },
   "note": "Invalid duplicate if E1 is already canonical on the best chain."
 }
@@ -618,7 +623,7 @@ All JSON is illustrative. `h3_cell` values are placeholders; indexers **MUST** r
 }
 ```
 
-If `8928308280fffff` is not the exact recomputed cell for `(12345, 9)`, this **MUST** be invalid.
+The official cell for `(12345, 9)` is `8908ee22e9bffff`. `8928308280fffff` does not match, so this **MUST** be invalid.
 
 ### E5 — Time-travel claim (invalid)
 
@@ -629,7 +634,7 @@ If `8928308280fffff` is not the exact recomputed cell for `(12345, 9)`, this **M
   "op": "claim",
   "chain": "dogecoin",
   "title": { "block_height": 999999999, "tier": "standard" },
-  "geo": { "h3_res": 9, "h3_cell": "<recomputed>" },
+  "geo": { "h3_res": 9, "h3_cell": "890a0066b4bffff" },
   "fair": { "stake_koinu": "10000000", "stake_burn": true }
 }
 ```
@@ -645,7 +650,7 @@ Invalid if the inscription confirms before `block_height` exists.
   "op": "claim",
   "chain": "dogecoin",
   "title": { "block_height": 6000000, "tier": "standard" },
-  "geo": { "h3_res": 9, "h3_cell": "<recomputed>" },
+  "geo": { "h3_res": 9, "h3_cell": "89229d2d337ffff" },
   "fair": { "stake_koinu": "1", "stake_burn": true }
 }
 ```

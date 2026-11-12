@@ -64,6 +64,38 @@
       "block_height": 12345,
       "h3_res": 8,
       "h3_cell": "88f166ced3fffff"
+    },
+    {
+      "id": "DOGEMAPS-GEO-12345-9",
+      "description": "Official derived cell for (block_height=12345, h3_res=9)",
+      "expect": "cell",
+      "block_height": 12345,
+      "h3_res": 9,
+      "h3_cell": "8908ee22e9bffff"
+    },
+    {
+      "id": "DOGEMAPS-GEO-5000000-9",
+      "description": "Official derived cell for (block_height=5000000, h3_res=9)",
+      "expect": "cell",
+      "block_height": 5000000,
+      "h3_res": 9,
+      "h3_cell": "89302600dafffff"
+    },
+    {
+      "id": "DOGEMAPS-GEO-6000000-9",
+      "description": "Official derived cell for (block_height=6000000, h3_res=9)",
+      "expect": "cell",
+      "block_height": 6000000,
+      "h3_res": 9,
+      "h3_cell": "89229d2d337ffff"
+    },
+    {
+      "id": "DOGEMAPS-GEO-999999999-9",
+      "description": "Official derived cell for (block_height=999999999, h3_res=9)",
+      "expect": "cell",
+      "block_height": 999999999,
+      "h3_res": 9,
+      "h3_cell": "890a0066b4bffff"
     }
   ]
 }

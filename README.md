@@ -1,16 +1,99 @@
 # ÐMaps and ÐLand — canonical public specification
 
-**This repository is the canonical public specification for ÐMaps (`p: "Ð:MAPS"`) and its companion ÐLand (`p: "Ð:LAND"`).**
+**This repository is the canonical public specification for ÐMaps (`p: "Ð:MAPS"`) and its companion ÐLand (`p: "Ð:LAND"`).** It is meant to be implemented against today. The rules, schemas, worked vectors, checkpoint hashes, and HTTP API are in this tree. You do not need indexer source, a rename, or a mainnet height to start building.
 
-ÐMaps turns every Dogecoin block height into a transferable **title**, with a deterministic [H3](https://h3geo.org/) overlay derived from that height. ÐLand is an optional **expansion pack** layer on top of those titles: permissionless pack schemas, holder-gated builds that travel with the parcel, and a *chosen* real-world H3 pin (not legal property), with district/region rollups.
+---
 
-A third-party indexer that follows [docs/INDEXING.md](docs/INDEXING.md) MUST produce the **same state and the same checkpoint hash** as the reference implementation (Dogex) at every height. dApps talk to that indexer through [docs/API.md](docs/API.md).
+## Start here
+
+### What is stable now vs what is waiting
+
+| Feature | Status | Implement today? |
+| --- | --- | --- |
+| ÐMaps titles (`op: "claim"`), FCFS per `block_height` | **Frozen rules** in [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md). Schemas and official cells match §6.1 / §7.5 | **Yes** |
+| Derived H3 overlay (default res 9), Uber H3 **4.2.1** | **Frozen.** Official cells: `(0,9)=89e98d184b7ffff`, `(1,9)=8901a2b054fffff`, `(12345,8)=88f166ced3fffff` | **Yes** |
+| ÐLand packs, holder-gated builds, res-12 anchors, districts/regions | **Launch Draft, complete.** [protocols/dland/spec.md](protocols/dland/spec.md) has the threat model, auth, and ops. Worked state in [vectors/indexer-state.json](vectors/indexer-state.json) | **Yes** — treat `"p": "Ð:LAND"` as load-bearing |
+| Holder authorization (spend current title UTXO + committed reveal) | **Frozen** | **Yes.** Signature-only auth is invalid |
+| Deterministic indexing, reorgs, `dmaps-checkpoint/1` | **Normative** [docs/INDEXING.md](docs/INDEXING.md). Independent indexers MUST match these hashes | **Yes** (`npm test`) |
+| Dogex HTTP API (claims, parcels, packs, builds, anchors, cells, districts, holders, checkpoints) | **Documented** in [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml). Dogex exposes these routes | **Yes.** On mainnet the index is empty until a height is announced |
+| Mainnet / testnet activation height | **Not announced** (`null` in INDEXING.md). Regtest = `0` | Indexers MUST stay idle on mainnet until a dated revision names a height. Use regtest or a local override for development only |
+| Land Standing/1, neighbor `gridDisk` counts, district-majority skins | **Non-consensus / advisory.** Not in the checkpoint | Optional. If you cannot compute neighbors, set `neighbors_indexed: false` |
+| Protocol display name “ÐLand” | Cosmetic. A rename would be a **dated revision with a new marker**, not a silent change | Do not invent a second marker. Emit `"p": "Ð:LAND"` |
+
+**Launch Draft** means the rules here are the ones a conformant indexer and dApp must follow, with tests you can run in this repo. It is not a sketch and not a reason to wait. The one thing still reserved is the **mainnet activation height**. Breaking changes, if any, will appear as a dated changelog revision — not a silent rewrite.
+
+### Minimal dApp path
+
+A dApp that ties a parcel to a real-world place does two things: **read** the index, and (if the user holds the title) **inscribe an anchor**.
+
+**1. Read** from any Dogex (or other conformant) indexer. All routes are read-only JSON; see [docs/API.md](docs/API.md).
+
+```http
+GET /api/doginals/capabilities
+GET /api/land/status
+GET /api/doginals/r/dogemap/block/{block}
+GET /api/land/parcel/{block}
+GET /api/land/cell/{h3}
+GET /api/land/holder/{address}
+GET /api/dmaps/checkpoint/{height}
+```
+
+Until `MAPS_ACTIVATION_HEIGHT` / `LAND_ACTIVATION_HEIGHT` are announced, mainnet responses are empty (activation disabled). On **regtest** they are live from height 0. Probe `capabilities.land` and `activation.*` rather than hard-coding a height.
+
+**2. Write an anchor** (current title holder only). The inscription body is the JSON in [protocols/dland/examples/anchor-valid.json](protocols/dland/examples/anchor-valid.json):
+
+```json
+{
+  "p": "Ð:LAND",
+  "v": "1",
+  "op": "anchor",
+  "parcel": 6197585,
+  "title": "<current title inscription id>",
+  "h3_res": 12,
+  "h3_cell": "8c28308280f37ff"
+}
+```
+
+The reveal transaction MUST:
+
+1. Be a **single-transaction committed (content-binding) inscription** — [docs/committed-envelope.md](docs/committed-envelope.md).
+2. **Spend the current title outpoint** (the satpoint of the ÐMaps v1 title at the start of that transaction). A leftover signature after a transfer is not authorization.
+3. Use a res-12 H3 cell the holder chose. One live parcel per cell; commit-first (`W = 30`); re-anchor cooldown 144 blocks. An anchor is **not legal property**.
+
+Builds use the same authorization, with [protocols/dland/examples/build-valid.json](protocols/dland/examples/build-valid.json), after a `pack` inscription exists. New titles use [protocols/dogemaps/examples/claim-valid.json](protocols/dogemaps/examples/claim-valid.json) (official cell `89e98d184b7ffff` for height 0, res 9).
+
+**3. Confirm** with `GET /api/land/parcel/{block}` and `GET /api/land/cell/{h3}`, or by matching `GET /api/dmaps/checkpoint/{height}` against another indexer.
+
+### Run the conformance tests
+
+```bash
+git clone https://github.com/jonheaven/dmaps.git
+cd dmaps
+npm test
+```
+
+No extra packages are required for `npm test` (Node 18+). To recompute official overlay cells yourself: `npm install h3-js@4.2.1` and use [reference/dmaps-geo.mjs](reference/dmaps-geo.mjs).
+
+| You are… | Then read |
+| --- | --- |
+| New to H3 / parcels | [docs/h3.md](docs/h3.md), then [protocols/dogemaps/README.md](protocols/dogemaps/README.md) |
+| Building a dApp | This section, then **[docs/API.md](docs/API.md)** and [docs/openapi.yaml](docs/openapi.yaml) |
+| Building an indexer | **[docs/INDEXING.md](docs/INDEXING.md)**, [CONFORMANCE.md](CONFORMANCE.md), both specs, `vectors/` and `reference/` |
+| An AI agent | [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) |
+
+---
+
+## What these protocols are
+
+ÐMaps turns every Dogecoin block height into a transferable **title**, with a deterministic [H3](https://h3geo.org/) overlay **derived from that height**. ÐLand is an optional **expansion pack** layer on top of those titles: permissionless pack schemas, holder-gated builds that travel with the parcel, and a *chosen* real-world H3 pin (not legal property), with district/region rollups.
+
+A third-party indexer that follows [docs/INDEXING.md](docs/INDEXING.md) MUST produce the **same state and the same checkpoint hash** as the reference implementation (Dogex) at every height.
 
 | | |
 | ---: | --- |
-| **ÐMaps** | Launch draft v0.1, [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md). FCFS per `block_height`. Official H3 4.2.1 cells in §7.5 |
-| **ÐLand** | **Launch Draft** v0.1, [protocols/dland/spec.md](protocols/dland/spec.md). Packs, builds, anchors. The name is renameable |
-| **Indexing** | [docs/INDEXING.md](docs/INDEXING.md) — order, validity, reorgs, activation constants, `dmaps-checkpoint/1` |
+| **ÐMaps** | v0.1, [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md) |
+| **ÐLand** | v0.1 Launch Draft, [protocols/dland/spec.md](protocols/dland/spec.md) |
+| **Indexing** | [docs/INDEXING.md](docs/INDEXING.md) |
 | **Conformance** | [CONFORMANCE.md](CONFORMANCE.md), [vectors/indexer-state.json](vectors/indexer-state.json) |
 | **HTTP API** | [docs/API.md](docs/API.md), [docs/openapi.yaml](docs/openapi.yaml) |
 | **H3 primer** | [docs/h3.md](docs/h3.md) |
@@ -19,29 +102,11 @@ A third-party indexer that follows [docs/INDEXING.md](docs/INDEXING.md) MUST pro
 
 This repo is **spec, docs, schemas, vectors, and reference JavaScript only**. It does not contain indexer source, secrets, or `.env` files.
 
-Mainnet activation heights are **disabled (`null`)** until a dated revision of `docs/INDEXING.md` announces them. Regtest activates at height `0`.
-
 ## Authors
 
 Jon Heaven — GitHub [@jonheaven](https://github.com/jonheaven) · X [@jontype](https://x.com/jontype)
 
 If you ship this in a wallet, metaverse, or indexer, emit exactly `"p": "Ð:MAPS"` and `"p": "Ð:LAND"` and keep the op shapes identical, so every indexer sees one title set and one land-use layer.
-
-## Start here
-
-| You are… | Read |
-| --- | --- |
-| **New to H3 / parcels** | [docs/h3.md](docs/h3.md), then the ÐMaps README |
-| **Building an indexer** | **[docs/INDEXING.md](docs/INDEXING.md)**, [CONFORMANCE.md](CONFORMANCE.md), then both specs |
-| **Building a dApp** | **[docs/API.md](docs/API.md)** and [docs/openapi.yaml](docs/openapi.yaml) |
-| **An AI agent** | [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) |
-| **Need JSON today** | [protocols/dogemaps/examples/](protocols/dogemaps/examples/), [protocols/dland/examples/](protocols/dland/examples/) |
-
-```bash
-npm test
-# optional, official overlay cells:
-# npm install h3-js@4.2.1 && node --input-type=module -e "import * as h3 from 'h3-js'; import { dogemapsH3, OFFICIAL_CELLS } from './reference/dmaps-geo.mjs'; ..."
-```
 
 ## Relationship (superset, no broken claims)
 

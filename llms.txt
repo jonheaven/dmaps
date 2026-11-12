@@ -2,12 +2,13 @@
 
 Canonical public spec: https://github.com/jonheaven/dmaps
 License: MIT
+Implementable now. Start at README.md (Start here). Mainnet activation height is the only reserved item (null until announced in docs/INDEXING.md).
 
 ## Protocols
-- ÐMaps, p="Ð:MAPS", launch draft v0.1: protocols/dogemaps/spec.md
+- ÐMaps, p="Ð:MAPS", v0.1 (rules frozen): protocols/dogemaps/spec.md
   FCFS title per block_height. Derived H3 overlay (default res 9) from SHA256d of DOGEMAPS/1/GEO/block_height=N/h3_res=R/ then H3 4.2.1 latLngToCell.
   Official cells: (0,9)=89e98d184b7ffff (1,9)=8901a2b054fffff (12345,8)=88f166ced3fffff
-- ÐLand, p="Ð:LAND", LAUNCH DRAFT v0.1: protocols/dland/spec.md
+- ÐLand, p="Ð:LAND", Launch Draft v0.1 (complete + vectors): protocols/dland/spec.md
   pack (permissionless, id=inscription id); build (holder-gated, travels with title, supersede/remove/seal); anchor (chosen H3 res 12, unique, commit-first W=30, reanchor cooldown 144).
   Authorization: committed reveal AND spend of current title UTXO. No leftover signatures after transfer.
   District=parent res 7 (Founder badge); Region=parent res 4. Not legal property.
