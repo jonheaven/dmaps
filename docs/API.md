@@ -13,7 +13,7 @@ This is the read API a dApp uses to show ÐMaps parcels and ÐLand packs, builds
 | `https://dogex.command.dog/#dland` | Console: parcel / cell / pack / holder lookup, state root, snapshot, packs, builds, anchors |
 | `http://127.0.0.1:8080` | A self-hosted `dogexd` (default listen) |
 
-No API key. CORS is open. Every route is `GET`, read-only, and returns `application/json`. Send `Accept: application/json`.
+No API key. CORS is open. Every route is `GET`, read-only, and returns `application/json` (the optional GeoJSON feed returns `application/geo+json`). Send `Accept: application/json`.
 
 Conventions: heights and parcel numbers are decimal integers. Inscription ids are `<64 lowercase hex>i<n>`. H3 indexes are lowercase hex with no `0x` and no leading zeros. Addresses are Dogecoin base58.
 
@@ -278,6 +278,28 @@ Dogex does not store missed or losing anchor attempts, so `cell` has no `missed`
 
 Limits: `/holder/{address}` lists at most 100 builds per parcel on a page; use `/api/land/builds?parcel=` for the rest. No list is capped.
 
+## Derived feeds (optional)
+
+Read conveniences built from the same records or from the raw chain. None of them is consensus, none is in the state root, and an indexer MAY omit them.
+
+| Method | Path | Returns |
+| --- | --- | --- |
+| GET | `/api/land/anchors.geojson?after=&limit=` | The live pins as an RFC 7946 `FeatureCollection` (`Content-Type: application/geo+json`) |
+| GET | `/api/dmaps/block/{height}/tx-values` | `{ height, hash, tx_count, values, picture }`: each transaction's total output value in koinu, block order. Input for the [block picture](extensions/block-mondrian.md) |
+
+**GeoJSON.** One `Feature` per occupied res-12 cell, in the same order and with the same paging as `/api/land/anchors` (`next` is a foreign member at the top level; pass it back as `after=`). `id` is the cell. `geometry` is the cell's H3 boundary as a closed `Polygon` ring of `[lng, lat]` (`cellToBoundary`, 6 decimals). `properties` is the anchor row (`parcel`, `anchor_id`, `status`, `final_after_height`, `priority`, `district`, `region`, …) plus `cursor` and `center` (`[lng, lat]` of `cellToLatLng`). Top-level members: `protocol`, `derived: true`, `tip`.
+
+```json
+{ "type": "FeatureCollection", "protocol": "Ð:LAND", "derived": true, "tip": 5900000, "next": null,
+  "features": [{ "type": "Feature", "id": "8c28308280f37ff",
+    "geometry": { "type": "Polygon", "coordinates": [[[-122.41, 37.77], "…", [-122.41, 37.77]]] },
+    "properties": { "parcel": 6197585, "status": "pending", "final_after_height": 5900012, "center": [-122.41, 37.77], "…": "…" } }] }
+```
+
+Drop the URL into any GeoJSON-aware tool (MapLibre, Leaflet, QGIS, geojson.io) to show pins without this API's other routes. Page until `next` is `null`.
+
+**Block tx values.** `values` are decimal strings (koinu can exceed 2^53). Read from the raw block, not from JSON floats. The route reads the node, not the ÐMaps index, so it answers even with the protocols switched off.
+
 ## Holders
 
 `GET /api/land/holder/{address}?after=&limit=`
@@ -345,6 +367,14 @@ Limits: `/holder/{address}` lists at most 100 builds per parcel on a page; use `
 ```
 
 The snapshot is built on demand from the records at the tip (Dogex no longer writes a checkpoint per block). `/api/dmaps/checkpoint/{height}` answers only for the tip height; for an older height compare `state/root/{height}`.
+
+### Checking two indexers agree
+
+1. Ask indexer A for `GET /api/dmaps/state/root` and note `height` and `root`.
+2. Ask indexer B for `GET /api/dmaps/state/root/{height}` at that height (B may be ahead or behind; if B has not reached it, use B's tip on A instead).
+3. Equal roots mean both hold identical `T/P/B/C` records after that block. Different roots: walk `state/delta/{h}` back to the first height where they differ and compare the entries.
+
+The three steps work from any client (Dogex serves open CORS). doginals.lol's ÐLand map has a "Verify" panel that does them against any second indexer URL.
 
 ## Quick start
 

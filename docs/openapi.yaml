@@ -313,6 +313,29 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200": { description: "{ anchors: [Anchor + cursor], next }" }
+  /api/land/anchors.geojson:
+    get:
+      summary: Live pins as an RFC 7946 FeatureCollection (derived, optional, not consensus)
+      parameters:
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: "FeatureCollection of res-12 cell polygons; properties = Anchor + cursor + center; top-level next, tip, derived"
+          content:
+            application/geo+json:
+              schema: { type: object }
+  /api/dmaps/block/{height}/tx-values:
+    get:
+      summary: Each transaction's total output value in koinu, block order (input for the non-consensus block picture)
+      parameters:
+        - in: path
+          name: height
+          required: true
+          schema: { type: integer, minimum: 0 }
+      responses:
+        "200": { description: "{ height, hash, tx_count, values: [decimal string], picture: dogemap-mondrian/1 }" }
+        "404": { description: "No block at that height" }
   /api/land/cell/{h3}:
     get:
       summary: Occupancy of one res-12 cell (status pending | final | free)

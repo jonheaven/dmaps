@@ -1,5 +1,18 @@
 # Changelog
 
+## Docs and reference, 2026-11-13 (no protocol change)
+
+Nothing in ÐMaps 0.3, ÐLand 0.3, INDEXING 0.3.0 or `dmaps-state/3` changed. Every root and vector is the same. Added:
+
+| Item | Status | Why |
+| --- | --- | --- |
+| Block picture `dogemap-mondrian/1` ([docs/extensions/block-mondrian.md](docs/extensions/block-mondrian.md), `reference/dogemap-mondrian.mjs`, vectors in `reference/dogemap-mondrian.test.mjs`) | **Optional, non-consensus** | Bitmap's accepted visual (ordinals-wallet/bitmap-renderer's Mondrian packer and size rule), computed exactly in integers and exported as an integer-coordinate SVG, so every market shows the same picture |
+| `GET /api/land/anchors.geojson` | **Optional, derived** read view | Pins in a format any map tool reads, with no protocol surface |
+| `GET /api/dmaps/block/{height}/tx-values` | **Optional** read route | Exact koinu input for the block picture |
+| "Checking two indexers agree" ([docs/API.md](docs/API.md#checking-two-indexers-agree)) | Docs | The root comparison, spelled out as three requests |
+
+Considered and left out, because each adds a knob, a fee or an off-chain authority, or conflicts with the design: footprints scaled by block size, rent, billboard or sub-lease economics, GPS proof of presence, adjacency bonuses in the rules, lat/lng anchors (H3 cells are exact and finite), requiring parent/child inscriptions (spending the title UTXO already ties changes to the holder and survives sales), and mempool-driven visuals.
+
 ## 0.3.0 — 2026-11-12
 
 Design pass: ÐMaps 0.3, ÐLand 0.3, INDEXING 0.3.0, `dmaps-state/3`. The question was what the simplest protocol is that still keeps the one hard guarantee — **only the current holder, spending the title UTXO in the same transaction, can change a parcel** — and still recognizes every existing `<n>.dogemap` parcel. The answer is in the README's [Design principles](README.md#design-principles). Every change below is one of three things: an existing convention adopted, a knob removed, or a stored fact turned into a view.

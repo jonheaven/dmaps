@@ -44,6 +44,7 @@ Real-world land claims (**anchors**) are **fully on-chain**. Each pin is a Dogec
 | Dogex HTTP API (claims, parcels, packs, builds, anchors, cells, districts, holders, state roots) | **Documented** in [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml). Read convenience over a recomputed index, **not authority** | **Yes.** Dogex keeps mainnet off by default (operator switch) |
 | Activation heights | **None in the protocol.** The rules apply from block 0 on every network. Dogex's `DOGEX_*_ACTIVATION_HEIGHT` is an operator switch (off on mainnet by default) | Index from genesis for canonical roots |
 | District Founder, Land Standing/2, neighbor `gridDisk` counts, district-majority skins | **Non-consensus / derived.** Not in the state root | Optional. If you cannot compute neighbors, set `neighbors_indexed: false` |
+| Block picture (`dogemap-mondrian/1`), GeoJSON pin feed, block tx-values route | **Non-consensus / optional.** Bitmap's Mondrian convention for drawing a block ([docs/extensions/block-mondrian.md](docs/extensions/block-mondrian.md), reference code + vectors); derived feeds in [docs/API.md](docs/API.md#derived-feeds-optional) | Optional. Use them so every wallet and market shows the same picture and pins |
 | Protocol display name “ÐLand” | Cosmetic. A rename would be a **dated revision with a new marker**, not a silent change | Do not invent a second marker. Emit `"p": "Ð:LAND"` |
 
 **Launch Draft** means the rules here are the ones a conformant indexer and dApp must follow, with tests you can run in this repo. It is not a sketch and not a reason to wait. Breaking changes, if any, will appear as a dated changelog revision — not a silent rewrite.
@@ -118,7 +119,7 @@ A third-party indexer that follows [docs/INDEXING.md](docs/INDEXING.md) MUST pro
 | ---: | --- |
 | **ÐMaps** | v0.3, [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md) |
 | **ÐLand** | v0.3 Launch Draft, [protocols/dland/spec.md](protocols/dland/spec.md) |
-| **Optional extensions** | [visual renderer](docs/extensions/visual-renderer.md), [collector scoring](docs/extensions/collector-scoring.md) (non-consensus) |
+| **Optional extensions** | [block picture `dogemap-mondrian/1`](docs/extensions/block-mondrian.md), [visual renderer](docs/extensions/visual-renderer.md), [collector scoring](docs/extensions/collector-scoring.md) (non-consensus) |
 | **Indexing** | [docs/INDEXING.md](docs/INDEXING.md) |
 | **Conformance** | [CONFORMANCE.md](CONFORMANCE.md), [vectors/indexer-state.json](vectors/indexer-state.json) |
 | **HTTP API** | [docs/API.md](docs/API.md), [docs/openapi.yaml](docs/openapi.yaml) |

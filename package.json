@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Canonical public spec for \u00d0Maps and \u00d0Land",
   "scripts": {
-    "test": "node --test protocols/dland/codec.test.mjs protocols/dland/standing.test.mjs reference/json-profile.test.mjs reference/dmaps-claim.test.mjs reference/indexer-state.test.mjs",
+    "test": "node --test protocols/dland/codec.test.mjs protocols/dland/standing.test.mjs reference/json-profile.test.mjs reference/dmaps-claim.test.mjs reference/indexer-state.test.mjs reference/dogemap-mondrian.test.mjs",
     "vectors": "node reference/make-vectors.mjs"
   },
   "dependencies": {

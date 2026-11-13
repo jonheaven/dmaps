@@ -26,7 +26,8 @@ Status (see also README.md Start here, and AGENTS.md):
 - vectors/indexer-state.json — expected results, delta and state_root after each abstract block
 - reference/json-profile.mjs, reference/dmaps-claim.mjs, reference/state.mjs, reference/apply.mjs, reference/dmaps-geo.mjs, reference/make-vectors.mjs
 - Standing/2 and founderOf (protocols/dland/standing.mjs) are non-consensus; not in the state root
-- Optional extensions: docs/extensions/visual-renderer.md, docs/extensions/collector-scoring.md
+- Optional extensions (non-consensus): docs/extensions/block-mondrian.md (block picture, reference/dogemap-mondrian.mjs), docs/extensions/visual-renderer.md, docs/extensions/collector-scoring.md
+- Optional derived feeds: GET /api/land/anchors.geojson, GET /api/dmaps/block/{height}/tx-values (docs/API.md#derived-feeds-optional)
 
 ## HTTP (Dogex — read convenience, not authority)
 - docs/API.md, docs/openapi.yaml
