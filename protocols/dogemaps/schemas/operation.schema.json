@@ -21,8 +21,7 @@
       "enum": [
         "claim",
         "upgrade",
-        "link",
-        "params"
+        "link"
       ]
     },
     "chain": {
@@ -37,7 +36,8 @@
       "properties": {
         "block_height": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 4294967295
         },
         "tier": {
           "const": "standard"
@@ -52,9 +52,7 @@
       ],
       "properties": {
         "h3_res": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 15
+          "const": 9
         },
         "h3_cell": {
           "type": "string",
@@ -67,19 +65,24 @@
       "properties": {
         "stake_koinu": {
           "type": "string",
-          "pattern": "^(0|[1-9][0-9]*)$"
+          "pattern": "^(0|[1-9][0-9]*)$",
+          "maxLength": 20
         },
         "stake_burn": {
           "const": true
         }
-      }
+      },
+      "required": [
+        "stake_koinu",
+        "stake_burn"
+      ]
     },
     "parent": {
       "type": "object",
       "properties": {
         "inscription_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{64}i[0-9]+$"
+          "pattern": "^[0-9a-f]{64}i(0|[1-9][0-9]{0,9})$"
         },
         "relation": {
           "type": "string",
@@ -89,7 +92,7 @@
     },
     "of": {
       "type": "string",
-      "pattern": "^[0-9a-f]{64}i[0-9]+$"
+      "pattern": "^[0-9a-f]{64}i(0|[1-9][0-9]{0,9})$"
     },
     "hrefs": {
       "type": "array",
@@ -110,5 +113,27 @@
         }
       }
     }
-  }
+  },
+  "$comment": "Shape only. Validity also needs the JSON profile, the derived h3_cell, the stake floor and the DDMAPBURN burn output (docs/INDEXING.md §2.2, §4).",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "op": {
+            "const": "claim"
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "then": {
+        "required": [
+          "title",
+          "geo",
+          "fair"
+        ]
+      }
+    }
+  ]
 }

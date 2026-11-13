@@ -5,33 +5,34 @@ License: MIT
 
 Status (see also README.md Start here, and AGENTS.md):
 - Anchors (real-world land claims) are fully on-chain Dogecoin inscriptions that spend the parcel title UTXO. There is no centralized DB. Any conformant indexer recomputes identical state from the chain and docs/INDEXING.md. The Dogex HTTP API is a read convenience, not authority.
-- End-to-end: current title holder broadcasts a committed ÐLand op:"anchor" reveal that spends the title satpoint; after confirmation every indexer applies the same rules; occupation is a chain fact, optionally read via GET /api/land/cell/{h3} or compared via checkpoint hashes.
-- ÐMaps v0.1 title rules and official H3 4.2.1 cells are specified in this repo.
-- ÐLand v0.1 is a Launch Draft with complete rules, schemas, and worked vectors. Marker: p="Ð:LAND".
+- End-to-end: current title holder broadcasts a committed ÐLand op:"anchor" reveal that spends the title satpoint; after confirmation every indexer applies the same rules; occupation is a chain fact, optionally read via GET /api/land/cell/{h3} or compared via state roots.
+- ÐMaps v0.2 title rules and official H3 4.2.1 cells are specified in this repo.
+- ÐLand v0.2 is a Launch Draft with complete rules, schemas, and worked vectors. Marker: p="Ð:LAND".
 - Mainnet and testnet activation heights are reserved (null in docs/INDEXING.md) until a dated revision announces them. Regtest activates at 0. A live mainnet index is empty until then.
 - This repo is spec, docs, schemas, vectors, and reference JavaScript. It does not include indexer source.
-- Standing/1 and neighbor counts are non-consensus and are not in the checkpoint hash.
+- Standing/1 and neighbor counts are non-consensus and are not in the state root.
 
 ## Protocols
-- ÐMaps, p="Ð:MAPS", v0.1: protocols/dogemaps/spec.md
-  FCFS title per block_height. Derived H3 overlay (default res 9) from SHA256d of DOGEMAPS/1/GEO/block_height=N/h3_res=R/ then H3 4.2.1 latLngToCell.
+- ÐMaps, p="Ð:MAPS", v0.2: protocols/dogemaps/spec.md
+  FCFS title per block_height; claim must be i0, single tx, chain="dogecoin", h3_res=9 with the derived cell, stake >= 10*(1000+min(G,5000))^2 koinu burned to OP_RETURN "DDMAPBURN"||u64le(stake). Derived H3 overlay (res 9) from SHA256d of DOGEMAPS/1/GEO/block_height=N/h3_res=R/ then H3 4.2.1 latLngToCell.
   Official cells: (0,9)=89e98d184b7ffff (1,9)=8901a2b054fffff (12345,8)=88f166ced3fffff
-- ÐLand, p="Ð:LAND", Launch Draft v0.1: protocols/dland/spec.md
+- ÐLand, p="Ð:LAND", Launch Draft v0.2: protocols/dland/spec.md
   pack (permissionless, id=inscription id); build (holder-gated, travels with title, supersede/remove/seal); anchor (chosen H3 res 12, unique, commit-first W=30, reanchor cooldown 144).
-  Authorization: committed reveal AND spend of current title UTXO. No leftover signatures after transfer.
+  Authorization: i0 of a committed ord reveal AND the title in the tx's start-of-tx spent set. No leftover signatures after transfer.
   District=parent res 7 (Founder badge); Region=parent res 4. Not legal property.
 
 ## Indexing (must be identical across implementations)
-- docs/INDEXING.md — order, validity, reorg, activation constants (mainnet/testnet null until announced; regtest 0), dmaps-checkpoint/1, SHA-256
-- vectors/indexer-state.json — expected checkpoint_hash after each abstract block
-- reference/apply.mjs, reference/checkpoint.mjs, reference/dmaps-geo.mjs
-- Standing/1 (protocols/dland/standing.mjs) is non-consensus; not in the checkpoint
+- docs/INDEXING.md (0.2.0) — JSON profile, order, validity, reorg, activation constants (mainnet/testnet null until announced; regtest 0), dmaps-state/2 delta + chained SHA-256 root, on-demand dmaps-checkpoint/2 snapshot
+- vectors/indexer-state.json — expected results, delta and state_root after each abstract block
+- reference/json-profile.mjs, reference/dmaps-claim.mjs, reference/state.mjs, reference/apply.mjs, reference/dmaps-geo.mjs, reference/make-vectors.mjs
+- Standing/1 (protocols/dland/standing.mjs) is non-consensus; not in the state root
 
 ## HTTP (Dogex — read convenience, not authority)
 - docs/API.md, docs/openapi.yaml
 - Base: https://dogex.command.dog (brief: /docs/dmaps). Errors are an HTTP status with a plain-text body.
-- Endpoints: /api/land/status (activation, maps_live, land_live), /api/doginals/dogemaps/claims?offset=&limit=, /api/doginals/dogemaps/claims/{block}, /api/land/parcel/{block}, /packs, /builds, /anchors, /cell/{h3}, /district/{h3}, /districts, /region/{h3}, /holder/{address}, /api/dmaps/checkpoint/latest, /api/dmaps/checkpoint/{height}
-- Dogex returns the §7 seed lat/lon for a title, not the res-9 H3 cell; compute it with h3-js 4.2.1 latLngToCell(lat, lon, 9)
+- Endpoints: /api/land/status (activation, maps_live, land_live), /api/doginals/dogemaps/claims?offset=&limit=, /api/doginals/dogemaps/claims/{block}, /api/land/parcel/{block}, /packs, /builds, /anchors, /cell/{h3}, /district/{h3}, /districts, /region/{h3}, /holder/{address}, /api/dmaps/state/root[/{height}], /api/dmaps/state/delta/{height}, /api/dmaps/checkpoint/latest
+- Lists are cursor-paged with next (null on the last page); nothing is capped
+- Dogex returns the §7 seed lat/lon and the res-9 h3_cell for a title
 
 ## Primer
 - docs/h3.md — what H3 is, resolution table, derived vs chosen cells, h3-js 4.2.1 examples

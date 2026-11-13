@@ -1,198 +1,517 @@
 {
   "spec": "Ð:LAND",
-  "version": "1",
+  "version": "2",
+  "h3_library": "4.2.1",
   "constants": {
     "h3_anchor_res": 12,
     "h3_district_res": 7,
     "h3_region_res": 4,
     "window": 30,
-    "reanchor_cooldown": 144
+    "reanchor_cooldown": 144,
+    "max_payload": 16384,
+    "max_depth": 32
   },
+  "$comment": "parse: exact body text (UTF-8) -> pass, or fail with the reference reason. Conformant indexers MUST agree on pass/fail; the reason strings are informative. authorize: policy over chain facts (docs/INDEXING.md §5.2). cell: commit-first take rule. h3: parents an indexer MUST compute. Chain scenarios (T1–T8, cooldown, displacement, founders, reorg) are executable in ../../../vectors/indexer-state.json.",
   "parse": [
     {
       "id": "PACK-001",
-      "expect": "pass",
       "description": "Valid pack with inline schema",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "pack",
-        "name": "street-scene",
-        "version": "1.0.0",
-        "schema": {
-          "type": "object"
-        }
-      }
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"street-scene\",\"version\":\"1.0.0\",\"schema\":{\"type\":\"object\"}}",
+      "expect": "pass"
     },
     {
       "id": "PACK-002",
-      "expect": "fail",
-      "why": "schema",
       "description": "Pack missing schema and schema_uri",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "pack",
-        "name": "x",
-        "version": "1"
-      }
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\"}",
+      "expect": "fail",
+      "why": "schema"
+    },
+    {
+      "id": "PACK-003",
+      "description": "Name is stored verbatim (no trimming)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\" spaced \",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
+      "expect": "pass"
+    },
+    {
+      "id": "PACK-004",
+      "description": "schema must be an object",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":\"object\"}",
+      "expect": "fail",
+      "why": "schema"
+    },
+    {
+      "id": "PACK-005",
+      "description": "null is not a valid value for note",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\",\"note\":null}",
+      "expect": "fail",
+      "why": "note"
+    },
+    {
+      "id": "PACK-006",
+      "description": "supersedes must be a canonical lowercase id",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\",\"supersedes\":\"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBi0\"}",
+      "expect": "fail",
+      "why": "supersedes"
+    },
+    {
+      "id": "PACK-007",
+      "description": "schema_uri longer than 512 code points",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}",
+      "expect": "fail",
+      "why": "schema_uri"
+    },
+    {
+      "id": "PACK-008",
+      "description": "Name of 64 code points (non-ASCII) is allowed",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"ÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
+      "expect": "pass"
+    },
+    {
+      "id": "PACK-009",
+      "description": "Name of 65 code points",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"ÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
+      "expect": "fail",
+      "why": "name"
+    },
+    {
+      "id": "PACK-010",
+      "description": "Version must be printable ASCII",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1.0é\",\"schema_uri\":\"ipfs://z\"}",
+      "expect": "fail",
+      "why": "version"
     },
     {
       "id": "BUILD-001",
-      "expect": "pass",
       "description": "Valid build",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "build",
-        "parcel": 1,
-        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
-        "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
-        "content": {
-          "model": "ipfs://z"
-        }
-      }
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"model\":\"ipfs://z\"}}",
+      "expect": "pass"
     },
     {
       "id": "BUILD-002",
+      "description": "Build missing title",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
       "expect": "fail",
-      "why": "title",
-      "description": "Build missing title (cannot bind to parcel)",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "build",
-        "parcel": 1,
-        "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
-        "content": {}
-      }
+      "why": "title"
+    },
+    {
+      "id": "BUILD-003",
+      "description": "Seal without content (keeps live content)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"seal\":true}",
+      "expect": "pass"
+    },
+    {
+      "id": "BUILD-004",
+      "description": "Parcel above u32",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":4294967296,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "expect": "fail",
+      "why": "parcel"
+    },
+    {
+      "id": "BUILD-005",
+      "description": "Remove with content",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"remove\":true,\"content\":{}}",
+      "expect": "fail",
+      "why": "content_on_remove"
+    },
+    {
+      "id": "BUILD-006",
+      "description": "content null is not an object",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":null}",
+      "expect": "fail",
+      "why": "content"
+    },
+    {
+      "id": "BUILD-007",
+      "description": "Title with a leading-zero index",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai01\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "expect": "fail",
+      "why": "title"
+    },
+    {
+      "id": "BUILD-008",
+      "description": "seal must be a boolean",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{},\"seal\":1}",
+      "expect": "fail",
+      "why": "seal"
+    },
+    {
+      "id": "BUILD-009",
+      "description": "Neither content, remove, seal, nor seal_all",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\"}",
+      "expect": "fail",
+      "why": "content"
+    },
+    {
+      "id": "BUILD-010",
+      "description": "Negative parcel",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":-1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "expect": "fail",
+      "why": "parcel"
     },
     {
       "id": "ANCHOR-001",
-      "expect": "pass",
       "description": "Valid res-12 anchor",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "anchor",
-        "parcel": 1,
-        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
-        "h3_res": 12,
-        "h3_cell": "8c28308280f37ff"
-      }
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37ff\"}",
+      "expect": "pass"
     },
     {
       "id": "ANCHOR-002",
+      "description": "Res 9 overlay cell is not an anchor pin",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8928308280fffff\"}",
       "expect": "fail",
-      "why": "h3_cell",
-      "description": "Res 9 ÐMaps overlay cell is not an anchor pin",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "anchor",
-        "parcel": 1,
-        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
-        "h3_res": 12,
-        "h3_cell": "8928308280fffff"
-      }
+      "why": "h3_cell"
     },
     {
       "id": "ANCHOR-003",
-      "expect": "pass",
       "description": "Clear",
-      "payload": {
-        "p": "Ð:LAND",
-        "v": "1",
-        "op": "anchor",
-        "parcel": 1,
-        "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
-        "clear": true
-      }
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"clear\":true}",
+      "expect": "pass"
+    },
+    {
+      "id": "ANCHOR-004",
+      "description": "Uppercase cell",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8C28308280F37FF\"}",
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "ANCHOR-005",
+      "description": "Res-12 bits but digit 12 is 7 (not a cell)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f3fff\"}",
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "ANCHOR-006",
+      "description": "Unused digit below res 12 is not 7",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37f8\"}",
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "ANCHOR-007",
+      "description": "Pentagon base cell with a deleted (leading 1) digit",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c08400000001ff\"}",
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "ANCHOR-008",
+      "description": "Base cell 122 does not exist",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8cf4000000001ff\"}",
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "ANCHOR-009",
+      "description": "h3_res is required",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_cell\":\"8c28308280f37ff\"}",
+      "expect": "fail",
+      "why": "h3_res"
+    },
+    {
+      "id": "ANCHOR-010",
+      "description": "Clear must not carry a cell or resolution",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"clear\":true,\"h3_res\":12}",
+      "expect": "fail",
+      "why": "cell_on_clear"
+    },
+    {
+      "id": "ANCHOR-011",
+      "description": "Cell with a 0x prefix",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"0x8c28308280f37ff\"}",
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "ANCHOR-012",
+      "description": "place must be an inscription id",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37ff\",\"place\":\"home\"}",
+      "expect": "fail",
+      "why": "place"
+    },
+    {
+      "id": "ANCHOR-013",
+      "description": "Valid anchor with a place",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8cbe0e35c0943ff\",\"place\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0\"}",
+      "expect": "pass"
     },
     {
       "id": "P-001",
-      "expect": "fail",
-      "why": "p",
       "description": "Wrong marker",
-      "payload": {
-        "p": "Ð:MAPS",
-        "v": "1",
-        "op": "pack",
-        "name": "x",
-        "version": "1",
-        "schema": {}
-      }
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "expect": "fail",
+      "why": "p"
+    },
+    {
+      "id": "P-002",
+      "description": "v must be the string \"1\"",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":1,\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "expect": "fail",
+      "why": "v"
+    },
+    {
+      "id": "P-003",
+      "description": "Unknown op",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"mint\"}",
+      "expect": "fail",
+      "why": "op"
+    },
+    {
+      "id": "P-004",
+      "description": "Unknown keys are ignored",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{},\"future\":{\"a\":[1]}}",
+      "expect": "pass"
+    },
+    {
+      "id": "PROF-001",
+      "description": "Fraction in parcel (1.0)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1.0,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "expect": "fail",
+      "why": "number"
+    },
+    {
+      "id": "PROF-002",
+      "description": "Exponent in h3_res (1.2e1)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":1.2e1,\"h3_cell\":\"8c28308280f37ff\"}",
+      "expect": "fail",
+      "why": "number"
+    },
+    {
+      "id": "PROF-003",
+      "description": "Float inside content",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":0.5}}",
+      "expect": "fail",
+      "why": "number"
+    },
+    {
+      "id": "PROF-004",
+      "description": "Integer above 2^53-1 inside content",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":9007199254740992}}",
+      "expect": "fail",
+      "why": "number"
+    },
+    {
+      "id": "PROF-005",
+      "description": "2^53-1 inside content is fine",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":9007199254740991,\"y\":-9007199254740991}}",
+      "expect": "pass"
+    },
+    {
+      "id": "PROF-006",
+      "description": "-0 is not an integer literal",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":-0}}",
+      "expect": "fail",
+      "why": "number"
+    },
+    {
+      "id": "PROF-007",
+      "description": "Duplicate key at the top level",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"parcel\":2,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "expect": "fail",
+      "why": "duplicate_key"
+    },
+    {
+      "id": "PROF-008",
+      "description": "Duplicate key in content (after unescaping)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"ab\":1,\"a\\u0062\":2}}",
+      "expect": "fail",
+      "why": "duplicate_key"
+    },
+    {
+      "id": "PROF-009",
+      "description": "Lone surrogate escape",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":\"\\ud800\"}}",
+      "expect": "fail",
+      "why": "surrogate"
+    },
+    {
+      "id": "PROF-010",
+      "description": "Escaped surrogate pair is fine",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":\"\\ud83d\\ude00\"}}",
+      "expect": "pass"
+    },
+    {
+      "id": "PROF-011",
+      "description": "Byte-order mark",
+      "body": "﻿{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "expect": "fail",
+      "why": "json"
+    },
+    {
+      "id": "PROF-012",
+      "description": "Non-JSON whitespace (U+0085) before the object",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "expect": "fail",
+      "why": "json"
+    },
+    {
+      "id": "PROF-013",
+      "description": "JSON whitespace around the object is fine",
+      "body": " \n\t{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}\r\n",
+      "expect": "pass"
+    },
+    {
+      "id": "PROF-014",
+      "description": "Nesting depth 32 (content arrays) is fine",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"d\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}}",
+      "expect": "pass"
+    },
+    {
+      "id": "PROF-015",
+      "description": "Nesting depth 33",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"d\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}}",
+      "expect": "fail",
+      "why": "depth"
+    },
+    {
+      "id": "PROF-016",
+      "description": "Body larger than 16384 bytes",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"x\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}",
+      "expect": "fail",
+      "why": "too_large"
+    },
+    {
+      "id": "PROF-017",
+      "description": "Trailing bytes after the object",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}} x",
+      "expect": "fail",
+      "why": "json"
+    },
+    {
+      "id": "PROF-018",
+      "description": "Top-level array",
+      "body": "[{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}]",
+      "expect": "fail",
+      "why": "not_object"
     }
   ],
   "authorize": [
     {
       "id": "T1-non-holder",
-      "expect": "fail",
-      "why": "no_title_spend",
-      "description": "Stranger signs but does not spend the current title UTXO",
+      "description": "Stranger does not spend the current title UTXO",
       "facts": {
         "committed": true,
+        "op_index": 0,
         "spends_title_outpoint": false,
         "title_is_canonical": true,
         "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
         "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
         "stale_outpoint": false
-      }
+      },
+      "expect": "fail",
+      "why": "no_title_spend"
     },
     {
       "id": "T2-stale-holder",
-      "expect": "fail",
-      "why": "stale_outpoint",
-      "description": "Previous holder after transfer: outpoint already moved",
+      "description": "Previous holder after transfer: spends an outpoint the title already left",
       "facts": {
         "committed": true,
+        "op_index": 0,
         "spends_title_outpoint": true,
         "title_is_canonical": true,
         "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
         "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
         "stale_outpoint": true
-      }
+      },
+      "expect": "fail",
+      "why": "stale_outpoint"
     },
     {
       "id": "T4-unbound",
-      "expect": "fail",
-      "why": "unbound",
-      "description": "Classic (unbound) reveal — body can be swapped",
+      "description": "Classic (unbound) reveal: body can be swapped",
       "facts": {
         "committed": false,
+        "op_index": 0,
         "spends_title_outpoint": true,
         "title_is_canonical": true,
         "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
         "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
         "stale_outpoint": false
-      }
+      },
+      "expect": "fail",
+      "why": "unbound"
     },
     {
       "id": "T5-title-mismatch",
-      "expect": "fail",
-      "why": "title_mismatch",
-      "description": "Body names a different inscription than the spent title",
+      "description": "Body names a different inscription than the canonical title",
       "facts": {
         "committed": true,
+        "op_index": 0,
         "spends_title_outpoint": true,
         "title_is_canonical": true,
         "body_title": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0",
         "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
         "stale_outpoint": false
-      }
+      },
+      "expect": "fail",
+      "why": "title_mismatch"
     },
     {
-      "id": "T-ok",
-      "expect": "pass",
-      "description": "Current holder spends the title in a committed reveal",
+      "id": "T-no-title",
+      "description": "No canonical v1 title for the parcel",
       "facts": {
         "committed": true,
+        "op_index": 0,
+        "spends_title_outpoint": true,
+        "title_is_canonical": false,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
+        "stale_outpoint": false
+      },
+      "expect": "fail",
+      "why": "no_title"
+    },
+    {
+      "id": "T-not-vin0",
+      "description": "Op is not the inscription carried by vin[0] (inscription index != 0)",
+      "facts": {
+        "committed": true,
+        "op_index": 1,
         "spends_title_outpoint": true,
         "title_is_canonical": true,
         "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
         "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
         "stale_outpoint": false
-      }
+      },
+      "expect": "fail",
+      "why": "not_vin0"
+    },
+    {
+      "id": "T-same-tx-title",
+      "description": "Title is created in the same transaction (not held at the start of it)",
+      "facts": {
+        "committed": true,
+        "op_index": 0,
+        "spends_title_outpoint": true,
+        "title_is_canonical": true,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": true,
+        "stale_outpoint": false
+      },
+      "expect": "fail",
+      "why": "no_title_spend"
+    },
+    {
+      "id": "T-ok",
+      "description": "Current holder spends the title in a committed reveal",
+      "facts": {
+        "committed": true,
+        "op_index": 0,
+        "spends_title_outpoint": true,
+        "title_is_canonical": true,
+        "body_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "canonical_title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+        "title_in_same_tx": false,
+        "stale_outpoint": false
+      },
+      "expect": "pass"
     }
   ],
   "cell": [
@@ -255,18 +574,150 @@
       },
       "tip": 41,
       "can_take": false
+    },
+    {
+      "id": "T7-last-pending",
+      "description": "tip == key + W is still pending",
+      "existing": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 0
+        }
+      },
+      "incoming": {
+        "key": {
+          "height": 10,
+          "tx_index": 0,
+          "vout": 9
+        }
+      },
+      "tip": 40,
+      "can_take": true
+    },
+    {
+      "id": "T7-equal",
+      "description": "Equal keys never displace",
+      "existing": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 0
+        }
+      },
+      "incoming": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 0
+        }
+      },
+      "tip": 12,
+      "can_take": false
+    },
+    {
+      "id": "T7-vout",
+      "description": "Same height and tx, lower vout wins",
+      "existing": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 2
+        }
+      },
+      "incoming": {
+        "key": {
+          "height": 10,
+          "tx_index": 1,
+          "vout": 1
+        }
+      },
+      "tip": 12,
+      "can_take": true
     }
   ],
-  "chain": [
-    "T1 non-holder build (no title spend) → ignored",
-    "T2 transfer then previous holder's pending build → never applies",
-    "T3 same-block transfer before reveal: reveal must spend the post-transfer outpoint or it is invalid",
-    "T4 holder-signed classic (unbound) build → ignored",
-    "T5 replay of a spent title outpoint → invalid",
-    "T6 A commits cell C at h=1; B copies and reveals at h=2; A reveals at h=3 → A wins",
-    "T7 two anchors on one cell: lower priority key wins; once final, no displacement",
-    "T8 reorg of the founding anchor block → founder and occupancy roll back",
-    "re-anchor inside 144-block cooldown → invalid; previous cell unchanged",
-    "anchor on a parcel with only an OG {n}.dogemap (no v1 claim) → invalid"
+  "h3": [
+    {
+      "cell": "8c28308280f37ff",
+      "valid": true,
+      "district": "872830828ffffff",
+      "region": "8428309ffffffff"
+    },
+    {
+      "cell": "8c28308280f35ff",
+      "valid": true,
+      "district": "872830828ffffff",
+      "region": "8428309ffffffff"
+    },
+    {
+      "cell": "8cbe0e35c0943ff",
+      "valid": true,
+      "district": "87be0e35cffffff",
+      "region": "84be0e3ffffffff"
+    },
+    {
+      "cell": "8c194ad14c255ff",
+      "valid": true,
+      "district": "87194ad14ffffff",
+      "region": "84194adffffffff"
+    },
+    {
+      "cell": "8c2f5aadc6d89ff",
+      "valid": true,
+      "district": "872f5aadcffffff",
+      "region": "842f5abffffffff"
+    },
+    {
+      "cell": "8c7eb57221a29ff",
+      "valid": true,
+      "district": "877eb5722ffffff",
+      "region": "847eb57ffffffff"
+    },
+    {
+      "cell": "8c03263522857ff",
+      "valid": true,
+      "district": "870326352ffffff",
+      "region": "8403263ffffffff"
+    },
+    {
+      "cell": "8cf2938f02acdff",
+      "valid": true,
+      "district": "87f2938f0ffffff",
+      "region": "84f2939ffffffff"
+    }
+  ],
+  "invalid_cells": [
+    {
+      "cell": "8c28308280f3fff",
+      "valid_res12": false
+    },
+    {
+      "cell": "8c28308280f37f8",
+      "valid_res12": false
+    },
+    {
+      "cell": "8c08400000001ff",
+      "valid_res12": false
+    },
+    {
+      "cell": "8cf4000000001ff",
+      "valid_res12": false
+    },
+    {
+      "cell": "9c28308280f37ff",
+      "valid_res12": false
+    },
+    {
+      "cell": "8928308280fffff",
+      "valid_res12": false
+    },
+    {
+      "cell": "0",
+      "valid_res12": false
+    },
+    {
+      "cell": "ffffffffffffffff",
+      "valid_res12": false
+    }
   ]
 }

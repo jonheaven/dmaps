@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Dogex ÐMaps / ÐLand API
-  version: "0.2"
+  version: "0.3"
   description: >-
     Read-only indexer API so a dApp can resolve titles, packs, builds, anchors, cells,
-    districts, regions, holders, and checkpoints. The chain is the authority; this API is a
+    districts, regions, holders, and the dmaps-state/2 root. The chain is the authority; this API is a
     read convenience. Normative behavior is docs/API.md and docs/INDEXING.md. Every error is an
     HTTP status with a plain-text body.
   license:
@@ -34,8 +34,8 @@ components:
       in: path
       name: h3
       required: true
-      description: Lowercase hex H3 index, no 0x, no leading zeros.
-      schema: { type: string, pattern: "^[0-9a-f]{15,16}$" }
+      description: Canonical lowercase H3 cell (15 hex digits, isValidCell). district/region also accept any finer cell.
+      schema: { type: string, pattern: "^8[0-9a-f]{14}$" }
     Address:
       in: path
       name: address
@@ -75,12 +75,15 @@ components:
         lat: { type: number, description: "§7 seed latitude at res 9" }
         lon: { type: number, description: "§7 seed longitude at res 9" }
         body: { type: string, enum: [earth] }
+        h3_res: { type: integer, enum: [9] }
+        h3_cell: { type: [string, "null"], description: "latLngToCell(lat, lon, 9), H3 4.2.1" }
     Build:
       type: object
       properties:
         pack: { type: string }
         pack_name: { type: [string, "null"] }
         content: {}
+        content_sha256: { type: [string, "null"] }
         sealed: { type: boolean }
         applied: { type: integer }
         last_build: { type: [string, "null"] }
@@ -95,22 +98,44 @@ components:
         district: { type: [string, "null"] }
         region: { type: [string, "null"] }
         status: { type: string, enum: [pending, final] }
+        final_after_height: { type: integer }
         priority: { $ref: "#/components/schemas/Priority" }
         from_commit: { type: boolean }
         anchor_id: { type: string }
         parcel: { type: integer }
         cooldown_remaining: { type: integer }
+    Next:
+      type: [string, "null"]
+      description: Cursor for the next page (pass as after=); null on the last page.
+    StateRoot:
+      type: object
+      properties:
+        version: { type: string, enum: [dmaps-state/2] }
+        height: { type: integer }
+        root: { type: string }
+        last_change_height: { type: [integer, "null"] }
+    StateDelta:
+      type: object
+      properties:
+        version: { type: string, enum: [dmaps-state/2] }
+        height: { type: integer }
+        prev_root: { type: string }
+        root: { type: string }
+        entries: { type: array, items: { type: string } }
+        delta_text: { type: [string, "null"] }
     Checkpoint:
       type: object
       properties:
-        version: { type: string, enum: [dmaps-checkpoint/1] }
+        version: { type: string, enum: [dmaps-checkpoint/2] }
+        state_version: { type: string, enum: [dmaps-state/2] }
         height: { type: integer }
+        root: { type: string }
         hash: { type: string, description: SHA-256 of checkpoint }
         checkpoint: { type: string }
 paths:
   /api/doginals/capabilities:
     get:
-      summary: Protocol capabilities (land block and activation are mainnet defaults)
+      summary: Protocol capabilities for the network this node indexes
       responses:
         "200": { description: Capabilities document }
   /api/land/status:
@@ -133,7 +158,12 @@ paths:
                   land_live: { type: boolean }
                   maps_flag: { type: boolean }
                   land_flag: { type: boolean }
+                  state_version: { type: string }
                   checkpoint_version: { type: string }
+                  state_root: { type: string }
+                  state_root_height: { type: [integer, "null"] }
+                  claim_window: { type: integer }
+                  maps_h3_res: { type: integer }
                   routes: { type: array, items: { type: string } }
                   window: { type: integer }
                   reanchor_cooldown: { type: integer }
@@ -227,9 +257,14 @@ paths:
                   protocol: { type: string }
                   parcel: { type: integer }
                   title: { type: string }
+                  title_h3: { type: object, properties: { h3_res: { type: integer }, h3_cell: { type: [string, "null"] } } }
                   holder: { type: [string, "null"] }
                   builds: { type: array, items: { $ref: "#/components/schemas/Build" } }
+                  builds_next: { $ref: "#/components/schemas/Next" }
                   anchor: { oneOf: [{ $ref: "#/components/schemas/Anchor" }, { type: "null" }] }
+                  seal_all: { type: boolean }
+                  last_change: { type: [integer, "null"] }
+                  cooldown_remaining: { type: integer }
                   is_founder: { type: boolean }
                   standing: { type: object }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -240,7 +275,7 @@ paths:
         - $ref: "#/components/parameters/After"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ packs: [{ id, name, version, height, cursor }] }" }
+        "200": { description: "{ packs: [{ id, name, version, height, cursor }], next }" }
   /api/land/packs/{id}:
     get:
       summary: One pack by inscription id
@@ -255,7 +290,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
   /api/land/builds:
     get:
-      summary: Live builds (limit bounds the scan before the pack filter)
+      summary: Live builds (limit bounds the scan before the pack filter; page until next is null)
       parameters:
         - in: query
           name: parcel
@@ -266,7 +301,7 @@ paths:
         - $ref: "#/components/parameters/After"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ builds: [Build] }" }
+        "200": { description: "{ builds: [Build], next }" }
   /api/land/anchors:
     get:
       summary: Live res-12 cell occupants in cell order
@@ -274,22 +309,24 @@ paths:
         - $ref: "#/components/parameters/After"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ anchors: [Anchor + cursor] }" }
+        "200": { description: "{ anchors: [Anchor + cursor], next }" }
   /api/land/cell/{h3}:
     get:
       summary: Occupancy of one res-12 cell (status pending | final | free)
       parameters:
         - $ref: "#/components/parameters/H3"
       responses:
-        "200": { description: "Anchor plus protocol, or { protocol, h3_cell, h3_res, status: free }" }
+        "200": { description: "Anchor plus protocol, or { protocol, h3_cell, h3_res, district, region, status: free }" }
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/land/district/{h3}:
     get:
-      summary: Res-7 district founder and anchored parcels
+      summary: Res-7 district founder, live-cell count and anchored parcels in priority order (paged)
       parameters:
         - $ref: "#/components/parameters/H3"
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ protocol, district, h3_res, founder, parcels, standing }" }
+        "200": { description: "{ protocol, district, region, h3_res, live_cells, founder, parcels, next, standing }" }
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/land/districts:
     get:
@@ -298,14 +335,16 @@ paths:
         - $ref: "#/components/parameters/After"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ protocol, h3_res, districts: [{ district, region, founder_parcel, anchor_id, final, priority, cursor }] }" }
+        "200": { description: "{ protocol, h3_res, districts: [{ district, region, founder_parcel, anchor_id, final, priority, cursor }], next }" }
   /api/land/region/{h3}:
     get:
-      summary: Res-4 region rollup of districts
+      summary: Res-4 region rollup of districts with live cells (paged)
       parameters:
         - $ref: "#/components/parameters/H3"
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ protocol, region, h3_res, districts, standing }" }
+        "200": { description: "{ protocol, region, h3_res, districts: [{ district, live_cells, founder, cursor }], next, standing }" }
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/land/holder/{address}:
     get:
@@ -315,19 +354,52 @@ paths:
       responses:
         "200": { description: "{ address, titles, anchored, builds }" }
         "400": { $ref: "#/components/responses/BadRequest" }
+  /api/dmaps/state/root:
+    get:
+      summary: dmaps-state/2 root at the indexed tip
+      responses:
+        "200":
+          description: Root
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StateRoot" }
+  /api/dmaps/state/root/{height}:
+    get:
+      summary: Root after a height
+      parameters:
+        - $ref: "#/components/parameters/Height"
+      responses:
+        "200":
+          description: Root
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StateRoot" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/dmaps/state/delta/{height}:
+    get:
+      summary: Record changes applied at a height
+      parameters:
+        - $ref: "#/components/parameters/Height"
+      responses:
+        "200":
+          description: Delta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StateDelta" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/dmaps/checkpoint/latest:
     get:
-      summary: Checkpoint at the indexed tip
+      summary: Full dmaps-checkpoint/2 snapshot at the indexed tip, built on demand
       responses:
         "200":
           description: Checkpoint
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Checkpoint" }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { description: Index moved while reading; retry }
   /api/dmaps/checkpoint/{height}:
     get:
-      summary: Canonical checkpoint text and SHA-256 at a height
+      summary: Snapshot at a height; only the indexed tip height is served
       parameters:
         - $ref: "#/components/parameters/Height"
       responses:
@@ -337,17 +409,13 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Checkpoint" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/land/state/root:
+    get:
+      summary: Alias of /api/dmaps/state/root
+      responses:
+        "200": { description: Root }
   /api/land/checkpoint/latest:
     get:
       summary: Alias of /api/dmaps/checkpoint/latest
       responses:
         "200": { description: Checkpoint }
-        "404": { $ref: "#/components/responses/NotFound" }
-  /api/land/checkpoint/{height}:
-    get:
-      summary: Alias of /api/dmaps/checkpoint/{height}
-      parameters:
-        - $ref: "#/components/parameters/Height"
-      responses:
-        "200": { description: Checkpoint }
-        "404": { $ref: "#/components/responses/NotFound" }

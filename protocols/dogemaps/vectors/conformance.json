@@ -1,8 +1,9 @@
 {
-  "$comment": "ÐMaps v1 structural + official H3 cells (H3 4.2.1). FCFS, stake, and reorg behavior: docs/INDEXING.md and vectors/indexer-state.json.",
-  "version": "1",
+  "$comment": "ÐMaps v1. vectors: schema shape + official H3 cells (H3 4.2.1). claims: full claim validity (docs/INDEXING.md §4): body text, reveal tx outputs (scriptPubKey hex, value in koinu), confirmation height, G -> pass/fail. floors: stake floor by G. geo_batch: DOGEMAPS_H3(h, 9) for h = 0..255.",
+  "version": "2",
   "protocol": "Ð:MAPS",
   "h3_library": "4.2.1",
+  "claim_window": 2016,
   "vectors": [
     {
       "id": "DOGEMAPS-001",
@@ -97,5 +98,775 @@
       "h3_res": 9,
       "h3_cell": "890a0066b4bffff"
     }
+  ],
+  "claims": [
+    {
+      "id": "CLAIM-001",
+      "description": "Valid claim, quiet network (G=0, floor 0.1 DOGE)",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          },
+          {
+            "script_hex": "76a914111111111111111111111111111111111111111188ac",
+            "value": "100000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "pass",
+      "block_height": 0
+    },
+    {
+      "id": "CLAIM-002",
+      "description": "Burn output can be anywhere and overpay",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":5000000,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89302600dafffff\"},\"fair\":{\"stake_koinu\":\"20000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "76a914111111111111111111111111111111111111111188ac",
+            "value": "100000000"
+          },
+          {
+            "script_hex": "6a1144444d41504255524e002d310100000000",
+            "value": "25000000"
+          }
+        ]
+      },
+      "height": 6000000,
+      "g": 0,
+      "expect": "pass",
+      "block_height": 5000000
+    },
+    {
+      "id": "CLAIM-003",
+      "description": "Wrong derived cell",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":12345,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"8928308280fffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100000,
+      "g": 0,
+      "expect": "fail",
+      "why": "h3_cell"
+    },
+    {
+      "id": "CLAIM-004",
+      "description": "Time travel: block_height above the confirmation height",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":101,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89f105461dbffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "time_travel"
+    },
+    {
+      "id": "CLAIM-005",
+      "description": "block_height equal to the confirmation height is fine",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":100,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89cf3217557ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "pass",
+      "block_height": 100
+    },
+    {
+      "id": "CLAIM-006",
+      "description": "Stake below the floor",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":6000000,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89229d2d337ffff\"},\"fair\":{\"stake_koinu\":\"1\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e0100000000000000",
+            "value": "1"
+          }
+        ]
+      },
+      "height": 6000001,
+      "g": 0,
+      "expect": "fail",
+      "why": "stake_floor"
+    },
+    {
+      "id": "CLAIM-007",
+      "description": "Floor at G=5000 is 3.6 DOGE: one koinu short",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":7,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"898461ab54bffff\"},\"fair\":{\"stake_koinu\":\"359999999\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524eff29751500000000",
+            "value": "359999999"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 5000,
+      "expect": "fail",
+      "why": "stake_floor"
+    },
+    {
+      "id": "CLAIM-008",
+      "description": "Floor at G=5000 is 3.6 DOGE: exact",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":7,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"898461ab54bffff\"},\"fair\":{\"stake_koinu\":\"360000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e002a751500000000",
+            "value": "360000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 5000,
+      "expect": "pass",
+      "block_height": 7
+    },
+    {
+      "id": "CLAIM-009",
+      "description": "G above 5000 is capped",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":7,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"898461ab54bffff\"},\"fair\":{\"stake_koinu\":\"360000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e002a751500000000",
+            "value": "360000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 9000,
+      "expect": "pass",
+      "block_height": 7
+    },
+    {
+      "id": "CLAIM-010",
+      "description": "No burn output",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "76a914111111111111111111111111111111111111111188ac",
+            "value": "100000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "no_burn"
+    },
+    {
+      "id": "CLAIM-011",
+      "description": "Burn output encodes a different amount",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e002d310100000000",
+            "value": "20000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "no_burn"
+    },
+    {
+      "id": "CLAIM-012",
+      "description": "Burn output value below the stake",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "9999999"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "no_burn"
+    },
+    {
+      "id": "CLAIM-013",
+      "description": "Burn pushed with OP_PUSHDATA1 is not the canonical script",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a4c1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "no_burn"
+    },
+    {
+      "id": "CLAIM-014",
+      "description": "v missing",
+      "body": "{\"p\":\"Ð:MAPS\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "v"
+    },
+    {
+      "id": "CLAIM-015",
+      "description": "Top-level alias shape is not a claim",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"block\":0,\"h3_cell\":\"89e98d184b7ffff\",\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "title"
+    },
+    {
+      "id": "CLAIM-016",
+      "description": "chain must be \"dogecoin\"",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"doge\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "chain"
+    },
+    {
+      "id": "CLAIM-017",
+      "description": "tier must be \"standard\"",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"gold\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "tier"
+    },
+    {
+      "id": "CLAIM-018",
+      "description": "h3_res is fixed at 9 (params never change it)",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":12345,\"tier\":\"standard\"},\"geo\":{\"h3_res\":8,\"h3_cell\":\"88f166ced3fffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100000,
+      "g": 0,
+      "expect": "fail",
+      "why": "h3_res"
+    },
+    {
+      "id": "CLAIM-019",
+      "description": "stake_koinu with a leading zero",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"010000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "stake_koinu"
+    },
+    {
+      "id": "CLAIM-020",
+      "description": "stake_koinu as a number",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":10000000,\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "stake_koinu"
+    },
+    {
+      "id": "CLAIM-021",
+      "description": "stake_burn false",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":false}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "stake_burn"
+    },
+    {
+      "id": "CLAIM-022",
+      "description": "Body finished by a later chained reveal (multi-transaction)",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": false,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "multi_tx"
+    },
+    {
+      "id": "CLAIM-023",
+      "description": "Unknown keys (note, ts, nonce) are ignored",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true},\"note\":\"gm\",\"ts\":1700000000,\"nonce\":\"n\"}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "pass",
+      "block_height": 0
+    },
+    {
+      "id": "CLAIM-024",
+      "description": "block_height written as 0.0",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0.0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "number"
+    },
+    {
+      "id": "CLAIM-025",
+      "description": "Body larger than 8192 bytes",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"10000000\",\"stake_burn\":true},\"note\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "too_large"
+    },
+    {
+      "id": "CLAIM-026",
+      "description": "stake_koinu above u64",
+      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"claim\",\"chain\":\"dogecoin\",\"title\":{\"block_height\":0,\"tier\":\"standard\"},\"geo\":{\"h3_res\":9,\"h3_cell\":\"89e98d184b7ffff\"},\"fair\":{\"stake_koinu\":\"18446744073709551616\",\"stake_burn\":true}}",
+      "tx": {
+        "single_tx": true,
+        "outputs": [
+          {
+            "script_hex": "6a1144444d41504255524e8096980000000000",
+            "value": "10000000"
+          }
+        ]
+      },
+      "height": 100,
+      "g": 0,
+      "expect": "fail",
+      "why": "stake_koinu"
+    }
+  ],
+  "floors": [
+    {
+      "g": 0,
+      "floor_koinu": "10000000"
+    },
+    {
+      "g": 1,
+      "floor_koinu": "10020010"
+    },
+    {
+      "g": 100,
+      "floor_koinu": "12100000"
+    },
+    {
+      "g": 2500,
+      "floor_koinu": "122500000"
+    },
+    {
+      "g": 4999,
+      "floor_koinu": "359880010"
+    },
+    {
+      "g": 5000,
+      "floor_koinu": "360000000"
+    },
+    {
+      "g": 5001,
+      "floor_koinu": "360000000"
+    },
+    {
+      "g": 100000,
+      "floor_koinu": "360000000"
+    }
+  ],
+  "geo_batch": [
+    "89e98d184b7ffff",
+    "8901a2b054fffff",
+    "89976558acfffff",
+    "89f2916ea9bffff",
+    "89112018cafffff",
+    "89619b020b3ffff",
+    "89109a21d37ffff",
+    "898461ab54bffff",
+    "89db1980927ffff",
+    "89d9290c657ffff",
+    "89736550153ffff",
+    "895ac44e0b7ffff",
+    "89e76878883ffff",
+    "89ce13c3433ffff",
+    "8935a0ace97ffff",
+    "894802d406fffff",
+    "89c6b4800bbffff",
+    "89a2863a053ffff",
+    "89d4320cc97ffff",
+    "89c2acb2b3bffff",
+    "8954484020fffff",
+    "896fab26197ffff",
+    "89a594b1217ffff",
+    "8963082c2c7ffff",
+    "8985b15288bffff",
+    "890c94959d3ffff",
+    "89a345af16fffff",
+    "89ba23aec0bffff",
+    "8961b3760b3ffff",
+    "89eb2b09c3bffff",
+    "89af9528b23ffff",
+    "894624c0a77ffff",
+    "89d6f2468afffff",
+    "8908e807333ffff",
+    "896e590c9dbffff",
+    "8920e5729d7ffff",
+    "89ef55575afffff",
+    "89df547985bffff",
+    "8916ead5c2bffff",
+    "891a88af577ffff",
+    "89356a4eb3bffff",
+    "891a600230fffff",
+    "8954d146127ffff",
+    "8901232a62bffff",
+    "893cd51114bffff",
+    "8960128350bffff",
+    "89ba832da2fffff",
+    "89120b563dbffff",
+    "89bcc004d33ffff",
+    "8903058434bffff",
+    "890c6873107ffff",
+    "893a08a6acfffff",
+    "8903a1a0303ffff",
+    "89f3367126bffff",
+    "89f376d611bffff",
+    "89e12825953ffff",
+    "89e05b29573ffff",
+    "8905737304bffff",
+    "893ecd914a7ffff",
+    "89a21ac54bbffff",
+    "89259a91e23ffff",
+    "892c269860bffff",
+    "8977168ee4fffff",
+    "89d4d02a833ffff",
+    "8978a9ba1abffff",
+    "89cf1dd1457ffff",
+    "89d7b14c55bffff",
+    "89955b90417ffff",
+    "899ac02816fffff",
+    "89ef6598957ffff",
+    "893591cb153ffff",
+    "89d26e63537ffff",
+    "8920c88e953ffff",
+    "8906e344697ffff",
+    "89755a9a893ffff",
+    "89826b6a62bffff",
+    "89dd74a464fffff",
+    "899e76acaa3ffff",
+    "895ca104183ffff",
+    "89f35cd0a4bffff",
+    "896f8c2819bffff",
+    "89bf8b4246fffff",
+    "89f30887287ffff",
+    "89250215223ffff",
+    "89029ac1aa3ffff",
+    "8931258610fffff",
+    "89e911ac43bffff",
+    "89f2938aeafffff",
+    "89de73cf633ffff",
+    "89cb300d6c7ffff",
+    "89c759a542fffff",
+    "898ae14688bffff",
+    "899f0298eabffff",
+    "89c13162db7ffff",
+    "8908f1cd10fffff",
+    "8961aa7a8a7ffff",
+    "89ad68af2a7ffff",
+    "89f29441c5bffff",
+    "89f10a49487ffff",
+    "896820b442fffff",
+    "89cf3217557ffff",
+    "89f105461dbffff",
+    "890493d214bffff",
+    "89ccecd4247ffff",
+    "89c81c0ee33ffff",
+    "890f953824fffff",
+    "89f29e2ce4fffff",
+    "891e5cc4a0fffff",
+    "8903263181bffff",
+    "894e60d5453ffff",
+    "890422959cfffff",
+    "89f16835563ffff",
+    "895a2864b83ffff",
+    "89ed59976a3ffff",
+    "896ab18d58fffff",
+    "89047688e9bffff",
+    "89194b41a87ffff",
+    "89880e81833ffff",
+    "893c5631827ffff",
+    "896008dac7bffff",
+    "8978d176c8fffff",
+    "890e132c9afffff",
+    "89235258857ffff",
+    "8951047201bffff",
+    "89275316123ffff",
+    "899f613120fffff",
+    "89f085a2407ffff",
+    "89dc0861b0fffff",
+    "89060955c43ffff",
+    "89158c0b46fffff",
+    "890300cddc3ffff",
+    "89f203a7113ffff",
+    "8922c96eaa7ffff",
+    "89f2c58f6a7ffff",
+    "89cac288597ffff",
+    "896ce6b7497ffff",
+    "892000ced17ffff",
+    "89808b124a7ffff",
+    "892458cd46fffff",
+    "891904c9c83ffff",
+    "89966a9604fffff",
+    "893a962d347ffff",
+    "89ad43006b3ffff",
+    "8904ce54387ffff",
+    "89f099a0e77ffff",
+    "8900c0ce9d7ffff",
+    "89a512dabc7ffff",
+    "8902331b05bffff",
+    "89038139203ffff",
+    "89754bc533bffff",
+    "89278e4ab5bffff",
+    "8953199a133ffff",
+    "89f31680297ffff",
+    "89899267613ffff",
+    "89e331b1d2fffff",
+    "89061b0e3dbffff",
+    "89f2a40b42bffff",
+    "899286790cbffff",
+    "89ee4a7102bffff",
+    "8939624c57bffff",
+    "898e2e428a7ffff",
+    "899276d92d7ffff",
+    "89142a51db7ffff",
+    "89d4d64f61bffff",
+    "89e565b890fffff",
+    "895513b6d4bffff",
+    "896d36d749bffff",
+    "890782af34fffff",
+    "89f164d9217ffff",
+    "89031bda933ffff",
+    "89160631e17ffff",
+    "890c04c1ddbffff",
+    "89f2b33a657ffff",
+    "89e32355017ffff",
+    "8922146e347ffff",
+    "891c82173dbffff",
+    "89d97415647ffff",
+    "8912db265cbffff",
+    "891d141a8abffff",
+    "892a358da17ffff",
+    "8904131b043ffff",
+    "89295a2e1c3ffff",
+    "89030d11457ffff",
+    "8966dc48527ffff",
+    "892d6ea757bffff",
+    "89d21a4552fffff",
+    "892a320ca0bffff",
+    "89e1ac11187ffff",
+    "89f11ab19bbffff",
+    "89df9981a27ffff",
+    "89d05ed214bffff",
+    "89032275bb3ffff",
+    "89f16211e53ffff",
+    "892f2354057ffff",
+    "89d48a5a86fffff",
+    "89a2e328023ffff",
+    "89e98ac6d3bffff",
+    "8915b552e9bffff",
+    "89beb59b037ffff",
+    "8918f14d8cfffff",
+    "894d7172b8fffff",
+    "8903951ab83ffff",
+    "890b53cdc03ffff",
+    "898a2a22927ffff",
+    "89ee19cf52bffff",
+    "89501478da7ffff",
+    "898b931930fffff",
+    "89288a99db7ffff",
+    "894469c592fffff",
+    "89be988db6fffff",
+    "893a0ea9b43ffff",
+    "89e190943abffff",
+    "89e14310b47ffff",
+    "893015a3347ffff",
+    "89ef30b63cfffff",
+    "89434a7761bffff",
+    "89890909c3bffff",
+    "89d46d3319bffff",
+    "8950c8a03cfffff",
+    "890235c2ac7ffff",
+    "89ca13540abffff",
+    "89ef489702bffff",
+    "8947200eb73ffff",
+    "89cd7130eb7ffff",
+    "89d998d538bffff",
+    "89a4c431197ffff",
+    "89df542d3d3ffff",
+    "897549ca52bffff",
+    "898ced923dbffff",
+    "891e4ad2b67ffff",
+    "899e459a3a7ffff",
+    "89a03038e43ffff",
+    "89f25191433ffff",
+    "89dc1eb9567ffff",
+    "891a042455bffff",
+    "8954364ec2bffff",
+    "89075d10bc7ffff",
+    "890b3159ccbffff",
+    "89710452a7bffff",
+    "898e45942dbffff",
+    "89d0aab2593ffff",
+    "893d0382113ffff",
+    "89e3b204a57ffff",
+    "890d0ca864fffff",
+    "8920ecc83d7ffff",
+    "89f29a02013ffff",
+    "89f280af27bffff",
+    "89b582d5b9bffff",
+    "8964346f007ffff",
+    "89efb34126bffff",
+    "89812db0a27ffff",
+    "89ed0ed625bffff",
+    "89639050437ffff",
+    "89f2b202893ffff",
+    "89dc9a38e4bffff",
+    "89a2463ac7bffff"
   ]
 }

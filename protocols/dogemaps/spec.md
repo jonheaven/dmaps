@@ -1,12 +1,12 @@
 <!-- markdownlint-disable MD024 -->
 # ÐMaps — Block Title and Geo-Overlay Protocol (Dogenals)
 
-Version: 0.1
+Version: 0.2
 Status: Launch Draft
 Canonical public repo: [github.com/jonheaven/dmaps](https://github.com/jonheaven/dmaps)
 Indexing (deterministic, shared with ÐLand): [docs/INDEXING.md](../../docs/INDEXING.md)
 
-Chain: Dogecoin (mainnet; `chain: "dogecoin"`. Regtest or testnet MAY set `chain` to an implementation-defined value when documented.)
+Chain: Dogecoin. `chain` is the literal `"dogecoin"` on every network (mainnet, testnet, regtest), so a body never means different things on different networks.
 
 **Naming:** **ÐMaps** is the Dogenals-era standard name (aligned with ÐMP, ÐMS). The inscription JSON protocol id
 **`p`** **MUST** remain the literal string **`Ð:MAPS`** so existing indexers and inscriptions stay
@@ -25,7 +25,7 @@ interoperable; documentation uses **ÐMaps** except when citing the on-chain fie
    - 6.1 claim
    - 6.2 upgrade
    - 6.3 link
-   - 6.4 params (optional governance)
+   - 6.4 params (removed in 0.2)
 7. H3 Geospatial Derivation
 8. FCFS, Validity, and Indexer State
 9. Fairness, Anti-Abuse, and Economic Friction
@@ -67,7 +67,7 @@ value SHOULD come from **on-chain** building (child inscriptions, linked data, D
 
 - **Decentralized** — Title validity is determined solely by public chain data, canonical ordering, and deterministic validation. No marketplace, founder wallet, indexer, or private registry can mint, override, or invalidate canonical titles outside these rules.
 
-- **Fair** — FCFS with transparent economic friction (stake floors, claim caps, activity-weighted scoring) applies identically to every participant. The origin of a valid inscription — whether self-mined or purchased from any marketplace — confers neither privilege nor penalty at the protocol layer.
+- **Fair** — FCFS with transparent economic friction (a burned stake floor that rises with activity, activity-weighted scoring) applies identically to every participant. The origin of a valid inscription — whether self-mined or purchased from any marketplace — confers neither privilege nor penalty at the protocol layer.
 
 - **Trusted** — Every normative claim is independently verifiable: H3 cells are recomputed from the same formula, stakes are attested on-chain, duplicates are dropped by identical ordering, and reorgs are replayed the same way by any correct implementation. Optional extensions (§17 visual renderer, §18 collector scoring) are versioned and fully reproducible.
 
@@ -92,8 +92,9 @@ These principles keep ÐMaps aligned with “Do Only Good Every Day”: open rul
 
 ### 1.3 Size
 
-- Parsers **SHOULD** treat payloads with UTF-8 JSON size **greater than 8 KB** as `invalid` for the ÐMaps
-  protocol (interoperability; not consensus).
+- A body larger than **8192 bytes** is **not** a ÐMaps op. Every body MUST satisfy the dmaps JSON profile
+  ([INDEXING.md](../../docs/INDEXING.md) §2.2): strict UTF-8, one object, no duplicate keys, integers only,
+  depth ≤ 32, strict types, `null` never valid for a named field.
 - Unknown top-level and nested object keys **MUST** be **ignored** by indexers, except for keys explicitly
   **forbidden** in this spec.
 
@@ -150,8 +151,11 @@ These principles keep ÐMaps aligned with “Do Only Good Every Day”: open rul
 
 - `p`: `Ð:MAPS`
 - `v`: `1`
-- `op`: one of `claim` | `upgrade` | `link` | `params`
-- `chain`: `dogecoin` (mainnet)
+- `op`: one of `claim` | `upgrade` | `link`
+- `chain`: `dogecoin`
+
+A `claim` MUST be the first inscription (`i0`) of its reveal transaction with the whole body in that one
+transaction ([INDEXING.md](../../docs/INDEXING.md) §2.1).
 
 **Optional (no protocol semantics for ordering or validity):** `ts` (Unix time integer), `nonce` (string),
 `note` (string, human-readable, max 500 chars; indexers **MAY** truncate in APIs).
@@ -169,7 +173,7 @@ These principles keep ÐMaps aligned with “Do Only Good Every Day”: open rul
 
 ### 4.3 Witness envelope (MUST / SHOULD)
 
-- **New `claim`, `upgrade`, `link`, and `params` inscriptions** **SHOULD** use the **`dog`** witness envelope
+- **New `claim`, `upgrade`, and `link` inscriptions** **SHOULD** use the **`dog`** witness envelope
   (Dogenals Era 2): same **placement**, **reveal**, and **JSON semantics** as Doginals v1 **`ord`** inscriptions,
   but with the **`dog`** marker and envelope rules in [Dog marker envelope](../../docs/dog-marker-envelope.md)
   and the unified marker policy in [Multi-marker Era 1 compatibility](../../docs/dog-marker-envelope.md).
@@ -239,16 +243,15 @@ stake (§9).
 
 #### 6.1.2 Field rules (MUST)
 
-- `title.block_height` **MUST** be a non-negative **JSON number** (integer) with no fraction.
+- `title.block_height` **MUST** be a JSON integer `0 ≤ n ≤ 2^32 − 1`.
 - **Maturity (anti time-travel):** Let `H` = confirmation **block height** of the `claim` inscription. Indexers
   **MUST** require `title.block_height ≤ H`.
 - `title.tier` **MUST** be the string `standard` in v1. Other values are **MUST** `invalid` until a future
   version of this spec defines them.
-- `geo.h3_res` **MUST** equal the active `H3_RES` for the indexer at height `H` (from the latest **valid** prior
-  `params` in §6.4, or default 9 if none).
+- `geo.h3_res` **MUST** be `9`.
 - `geo.h3_cell` **MUST** equal the **exact** string from `DOGEMAPS_H3( title.block_height, geo.h3_res )` in §7.
 - `fair.stake_koinu` **MUST** be a **decimal string of koinu** (no sign, no leading zero except the single
-  `0` for zero), matching [ÐMP numeric strings](https://github.com/jonheaven/dmp/blob/main/spec.md).
+  `0` for zero, at most 20 digits, value ≤ `2^64 − 1`), matching [ÐMP numeric strings](https://github.com/jonheaven/dmp/blob/main/spec.md).
 - `fair.stake_burn` **MUST** be the JSON boolean `true` in v1.
 - The **inscribing transaction** of the `claim` **MUST** satisfy the **stake** rule in §9. If not, the claim
   is `invalid`.
@@ -309,20 +312,11 @@ it on its own `inscription_id`.
   whose `of` eventually points to a valid root (indexers **MAY** only index **one** hop in v1 for
   simplicity, but **MUST** document policy).
 
-### 6.4 `params` — Global H3 and fee constants (optional)
+### 6.4 `params` — removed in 0.2
 
-Optional **governance** op. Minimal reference indexers in v1 **MAY** ignore it if they use **fixed** defaults.
-If implemented:
-
-- **MUST** be signed (Dogecoin signed message or BIP-322) by a public key that was **registered** in a
-  previous `params` (bootstrap key **MAY** be a **well-known** constant in the first release, documented in
-  **implementation notes** — or omitted so all indexers use static defaults). **MUST** define signature
-  canonicalization in the `params` extension document.
-
-- Fields: `H3_RES`, `BASE` koinu, rolling window `R` blocks, caps, etc. Unknown keys **MUST** be **ignored**
-
-If `params` is not implemented, the defaults in **§7** and **§9** apply to all indexers (recommended for
-first implementations).
+There is no `params` op. A signed parameter feed is a trusted party: whoever holds the key could change the
+resolution or the stake rule for everyone. Every constant in this spec is fixed; changing one is a dated spec
+revision that every indexer adopts from the same height. An inscription with `op: "params"` is not a ÐMaps op.
 
 ---
 
@@ -336,7 +330,7 @@ stabilized in each language port.
 
 ### 7.1 Default resolution
 
-- `H3_RES` = **9** (unless a valid on-chain `params` changes it, if supported).
+- `H3_RES` = **9**. It is fixed.
 
 ### 7.2 Message for hashing (normative)
 
@@ -411,60 +405,43 @@ explorers and maps.
 
 ## 9. Fairness, Anti-Abuse, and Economic Friction
 
-Economic and rate rules are **MUST** for a **conforming** indexer in v1. They are **enforced in transaction
-structure and stake floors**, not by consensus. Network policy **MUST** be the same for interop: pick **one**
-stake model from §9.3 in deployments.
+The rules below are **MUST** for a conforming indexer. They are integer functions of confirmed chain data:
+no address heuristics, no fee estimation, no trusted parameter feed. The normative text is
+[INDEXING.md](../../docs/INDEXING.md) §4.
 
-### 9.1 Rolling per-address `claim` limit
+### 9.1 No per-address caps (removed in 0.2)
 
-- `R` = 2016 blocks.
-- `A` = number of ÐMaps protocol inscriptions (any `op` from this **claimer** address) seen in the last `R` blocks
-  in the **best** chain, including the current transaction if applicable. (Implementations **MAY** only
-  count `claim` for a simpler upper bound, but that **MUST** be **documented**.)
-- **MUST (cap):** A `claim` is **valid** only if `A ≤ A_cap` where
-  - `A_cap = min( 12, 4 + floor( current_height / 100_000 ) )`  
-  (Slow ramp with time; monopolist throughput is bounded in the long run.)
+Per-address claim caps and burst limits are gone. Addresses are free to create, so a cap only taxed honest
+users and needed each indexer to agree on "which address claimed" (inputs? change? the inscription owner?).
+The stake floor and a real burn price every claim the same way for everyone.
 
-### 9.2 Global **floor** stake (activity-based ramp)
+### 9.2 Stake floor (activity-based ramp)
 
-- `G` = number of `claim` ops **confirmed in the best chain** in the previous 2016 blocks (not including the
-  current block until confirmed).
-- `activity = min(1.0, G / 5000.0)`.
-- `min_stake_floor = round_koinu( 10_000_000 * (1.0 + 5.0 * activity)^2 )`  
-  ( `10_000_000` = 0.1 **DOGE** in koinu. `round_koinu` = round to **nearest** integer, ties to even.)
+- `G` = number of **canonical titles** confirmed at heights `[H − 2016, H − 1]`, where `H` is the claim's
+  confirmation height. Claims in block `H` itself do not count, so order inside a block cannot change the floor.
+- `min_stake_floor = 10 × (1000 + min(G, 5000))²` koinu.
 
-### 9.3 Stake attestation in the **claim transaction** (MUST, pick one policy per network)
+This is exact integer arithmetic. It equals the 0.1 formula `10_000_000 × (1 + 5 × min(1, G/5000))²` at every
+`G`, with no rounding: 0.1 DOGE when quiet, rising to 3.6 DOGE at `G ≥ 5000`. Vectors: `floors` in
+[vectors/conformance.json](vectors/conformance.json).
 
-The **inscribing** transaction of the `claim` **MUST** include an `OP_RETURN` output (first or additional
-`OP_RETURN` in the same tx) whose payload, after a single `OP_RETURN` opcode and push, begins with the
-bytes:
+### 9.3 Burn output in the claim transaction (MUST)
 
-`DDMAPBURN`
+The reveal transaction of the `claim` **MUST** have an output whose scriptPubKey is exactly
 
-followed by **8 little-endian** bytes: unsigned 64-bit integer equal to the integer value of
-`parse(fair.stake_koinu)`.
+```text
+6a 11 44444d41504255524e <u64le(stake_koinu)>
+   OP_RETURN, push 17 bytes: "DDMAPBURN" then the stake as 8 little-endian bytes
+```
 
-**MUST (stake satisfaction):** At least one of the following (deployment picks **one** and all indexers for
-that deployment **MUST** align):
+with value `≥ stake_koinu`, and `stake_koinu ≥ min_stake_floor`. OP_RETURN outputs are unspendable, so the
+stake is destroyed and cannot be recycled across claims. Fees are not stake (they go to a miner, who may be
+the claimant).
 
-1. **Fee-as-stake (simple):** The **implicit fee** to miners in this transaction (sum inputs − sum non-fee
-   outputs) **MUST** be `≥ parse(fair.stake_koinu)`.
-2. **Explicit burn:** An output of value `≥ parse(fair.stake_koinu)` to a **provably unspendable** script, as
-   documented in the project’s `SECURITY.md` / burn table.
+### 9.4 Sybil
 
-`fair.stake_koinu` **MUST** be `≥ max( min_stake_floor, 1_000_000 )` in koinu, and in v1 with policy (1) also
-`fee ≥ that same number`.
-
-### 9.4 Burst (SHOULD, indexer heuristic)
-
-- In addition, indexers **SHOULD** mark as `invalid` more than **2** `claim` ops from the **same** address in
-  any **rolling 1440-block** window (independent of 9.1) if those claims would exceed social tolerance.
-  (Optional; if implemented, **MUST** be documented in `indexer.yml`.)
-
-### 9.5 Sybil
-
-- UTXO-level Sybil is inherent. The combination of §9.1–9.3 **MUST** raise the cost of mass monopolies; users
-  **MUST** treat “same-day hundreds of claims from fresh wallets” with suspicion in marketplaces.
+- UTXO-level Sybil is inherent. The burn makes every claim cost the same for everyone; the floor rises with
+  activity so bulk claiming gets more expensive exactly when the chain is busy.
 
 ---
 
@@ -525,7 +502,7 @@ that deployment **MUST** align):
 ## 13. Security Considerations
 
 - **MUST** Distinguish DRC-20 and wrapped **spam** (§4.2).
-- **Griefing:** Stake and caps reduce empty claims; not eliminated.
+- **Griefing:** The burned stake prices every empty claim; it is not eliminated.
 - **Reorgs (§5.3):** Title can flip in extreme deep reorg; ÐMP and ownership follow the **best** chain.
 - **Geo and law:** H3 is not legal land. **MUST** not be represented as a government land registry.
 - **ÐMP** listing of an inscription the seller does not own remains **invalid** under ÐMP; ÐMaps does not
@@ -542,13 +519,15 @@ for each block b in order:
     j = try_parse_json( ins )
     if j is None or j.p != "Ð:MAPS": continue
     if j.v != "1": mark unsupported; continue
-    if j.chain != "dogecoin" and is_mainnet_deployment: invalid; continue
-    if j.op == "params": optional_apply_signed_params( j, b ) ; continue
+    if j.chain != "dogecoin": invalid; continue
     if j.op == "claim":
-       if not claim_schema_ok( j ): continue
+       if ins is not i0 or not single_tx( ins ): invalid; continue
+       if not claim_schema_ok( j ): continue           // INDEXING §2.2 profile + §4 fields
        if j.title.block_height > b.height: invalid; continue
        if recompute( j ) != j.geo.h3_cell: invalid; continue
-       if not fair_ok( j, b, ins ): invalid; continue
+       G = titles confirmed in [b.height - 2016, b.height - 1]
+       if stake < 10 * (1000 + min(G, 5000))^2: invalid; continue
+       if no output == OP_RETURN "DDMAPBURN" u64le(stake) with value >= stake: invalid; continue
        key = (j.chain, j.title.block_height, "standard")
        if key in state: duplicate; continue
        if j.title.tier != "standard": invalid; continue
@@ -561,7 +540,8 @@ reorg: rollback and rerun from common ancestor
 
 ## 15. Operation Examples (at least 10)
 
-Examples below use **official H3 4.2.1 cells** (also listed in §7.5). Indexers **MUST** recompute
+Every claim example needs a burn output `6a11 44444d41504255524e <u64le(stake_koinu)>` with value ≥ the stake in
+the same transaction (§9.3). Examples below use **official H3 4.2.1 cells** (also listed in §7.5). Indexers **MUST** recompute
 `h3_cell` with `DOGEMAPS_H3(block_height, h3_res)` and reject mismatches; the values in the JSON
 are not trusted, they are the expected result.
 
@@ -691,7 +671,7 @@ Invalid if the inscription confirms before `block_height` exists.
 }
 ```
 
-### E9 — Signed `params` update for H3 resolution
+### E9 — `params` is not an op (ignored)
 
 ```json
 {
@@ -699,14 +679,11 @@ Invalid if the inscription confirms before `block_height` exists.
   "v": "1",
   "op": "params",
   "chain": "dogecoin",
-  "effective_height": 7000000,
-  "params": { "H3_RES": 8, "BASE": "10000000", "R": 2016 },
-  "authority": "D8mZsgKwmSQWYRPEMCcm8KzNFj1JVF5UpA",
-  "sig": "3045022100abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd02201234567890123456789012345678901234567890123456789012345678901234"
+  "params": { "H3_RES": 8 }
 }
 ```
 
-Indexers that do not implement signed `params` **MUST** ignore this operation and continue with default `H3_RES = 9`.
+Since 0.2 there is no `params` op (§6.4). Indexers ignore this body; `H3_RES` stays 9.
 
 ### E10 — ÐMP `list` for a claim inscription
 
@@ -783,13 +760,13 @@ Indexers that do not implement signed `params` **MUST** ignore this operation an
 | Chain | Bitcoin | **Dogecoin** |
 | Title / association | **Block** / ordinal-space (ecosystem-specific) | **`block_height` (normative) +** derived **H3** |
 | Geo | Not normative in many Bitmap docs | **H3** at `H3_RES` with **MUST** verify |
-| Fairness levers | Social, miner, external | **MUST** caps + **MUST** stake floor and **MUST** burn/fee attestation (policy choice) |
+| Fairness levers | Social, miner, external | **MUST** activity-based stake floor and **MUST** OP_RETURN burn of the stake |
 | Marketplace | Varies by platform | **Normative** ÐMP for listings / transfers; **Dogenals** extension for supply metadata |
 | On-chain build | Varies; community layers | **`upgrade`**, `link` **normative**; parent-child encouraged |
 | Legacy / OG | n/a in same form | **OG** labeled; **MUST** not displace a **v1** `claim` |
 | Canonical ordering | Often indexer/community convention | Explicit `block_height`, `tx_index`, `vout`, inscription order |
 | Infinite supply | Bitcoin block cadence | Dogecoin block cadence; represented in ÐMP as dynamic / `per_block` |
-| Anti-monopoly stance | Collection / market policy dependent | Protocol-level caps, stake friction, burst heuristics, duplicate invalidation |
+| Anti-monopoly stance | Collection / market policy dependent | Burned stake that rises with activity, duplicate invalidation |
 | Legal geography | Usually not a legal claim | H3 is explicitly **not** real-world property law |
 
 *Informative: “**Current** community dogemaps / `.dogemap` labels” (before this spec) **MAY** be inconsistent. **v1** is the
@@ -1049,6 +1026,17 @@ ecosystems without central gatekeepers.
 
 
 **Celestial titles / globe overlay (informative):** Product maps MAY draw ÐMaps cells as a **layer** on the ÐGPS globe (Earth today; Moon/Mars if this protocol later adds `body` on `Ð:MAPS`). That overlay is not a new marker. Do **not** introduce `Ð:EARTH` / `Ð:MOON` sibling protocols — extend `Ð:MAPS` and `Ð:GPS` in place.
+
+---
+
+## 20. Changelog
+
+- **0.2** — Strict JSON profile (INDEXING §2.2) and an 8192-byte limit; `claim` must be `i0` and whole in one
+  transaction; `chain` is `"dogecoin"` everywhere; `h3_res` fixed at 9; `params` op, per-address caps and
+  burst limits removed; integer stake floor `10 × (1000 + min(G, 5000))²` with `G` = titles in the previous
+  2016 blocks; the stake must be burned to an exact `DDMAPBURN` OP_RETURN output (fee-as-stake removed);
+  top-level aliases (`block`, `h3`, …) are not read.
+- **0.1** — Launch draft.
 
 ---
 

@@ -1,6 +1,6 @@
 # ÐLand (expansion packs, builds, and real-world anchors)
 
-**Status: Launch Draft (v0.1)** — the rules, schemas, and vectors in this folder are complete enough to implement. The remaining reserved item is the **mainnet activation height** (announced in `docs/INDEXING.md`). The marker `"p": "Ð:LAND"` and the holder-spend authorization model are load-bearing; a rename would be a dated revision with a new marker, not a reason to delay work.
+**Status: Launch Draft (v0.2)** — the rules, schemas, and vectors in this folder are complete enough to implement. The remaining reserved item is the **mainnet activation height** (announced in `docs/INDEXING.md`). The marker `"p": "Ð:LAND"` and the holder-spend authorization model are load-bearing; a rename would be a dated revision with a new marker, not a reason to delay work.
 
 **Normative spec:** [spec.md](spec.md)
 
@@ -13,7 +13,7 @@
 
 Hardening is non-negotiable: only the current title holder can change a parcel's LAND config, by spending the current title UTXO in a committed reveal. See [spec.md §3](spec.md#3-threat-model-normative) and §6.
 
-Shared indexing, checkpoints, and activation: [../../docs/INDEXING.md](../../docs/INDEXING.md). HTTP: [../../docs/API.md](../../docs/API.md).
+Shared indexing, JSON profile, state root, and activation: [../../docs/INDEXING.md](../../docs/INDEXING.md). HTTP: [../../docs/API.md](../../docs/API.md).
 
 ```bash
 # from the repo root

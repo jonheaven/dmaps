@@ -1,118 +1,163 @@
-/** Apply an abstract block log to ÐMaps + ÐLand state. See vectors/indexer-state.json. */
-import { districtOf, canTakeCell, cooldownOk, isFinal, WINDOW, REANCHOR_COOLDOWN } from "../protocols/dland/codec.mjs";
+/**
+ * Reference ÐMaps + ÐLand state machine over an abstract block log (vectors/indexer-state.json).
+ * Each event is a confirmed inscription that already passed parsing; the event carries the
+ * chain facts an indexer reads from the transaction (committed, title spend, priority key).
+ * Normative text: docs/INDEXING.md §4–§7.
+ */
+import {
+  districtOf,
+  canTakeCell,
+  cooldownOk,
+  isFinal,
+  priorityCmp,
+  authorize,
+  WINDOW,
+  REANCHOR_COOLDOWN,
+} from "../protocols/dland/codec.mjs";
+import { recordLines, delta, nextRoot, genesisRoot } from "./state.mjs";
 
 export function emptyState() {
-  return { titles: {}, packs: {}, builds: {}, cells: {}, districts: {}, parcelLive: {} };
+  return { titles: {}, packs: {}, builds: {}, live: {}, cells: {}, districts: {} };
 }
 
-export function applyLog(blocks, start = emptyState()) {
-  let state = structuredClone(start);
-  const checkpoints = [];
+/**
+ * Apply blocks in order. Returns the final state and, per block, the state, the delta
+ * entries, and the state root after the block.
+ */
+export function applyLog(blocks, meta, start = emptyState()) {
+  const state = structuredClone(start);
+  let root = genesisRoot(meta);
+  const out = [];
   for (const block of blocks) {
+    const before = recordLines(state);
+    const results = [];
     for (const ev of block.events) {
-      applyEvent(state, ev, block.height, ev.tx_index ?? 0);
+      results.push(applyEvent(state, ev, block.height));
     }
-    // finalize district badges at this tip
-    for (const d of Object.values(state.districts)) {
-      if (!d.final_ && isFinal(d.key.height, block.height)) d.final_ = true;
-    }
-    checkpoints.push({ height: block.height, state: structuredClone(state) });
+    endBlock(state, block.height);
+    const entries = delta(before, recordLines(state));
+    root = nextRoot(root, block.height, entries);
+    out.push({ height: block.height, state: structuredClone(state), entries, root, results });
   }
-  return { state, checkpoints };
+  return { state, blocks: out, root };
 }
 
-function applyEvent(state, ev, height, txIndex) {
-  const typ = ev.type;
-  if (typ === "maps_claim") {
-    const h = ev.block_height;
-    if (state.titles[h]) return { ignored: "duplicate" };
-    if (ev.invalid) return { ignored: "invalid_claim" };
-    state.titles[h] = ev.id;
-    return { ok: true };
+export function applyEvent(state, ev, height) {
+  switch (ev.type) {
+    case "maps_claim": {
+      if (ev.invalid) return { ignored: "invalid_claim" };
+      if (state.titles[ev.block_height] !== undefined) return { ignored: "duplicate" };
+      state.titles[ev.block_height] = ev.id;
+      return { ok: true };
+    }
+    case "pack":
+      state.packs[ev.id] = { id: ev.id, name: ev.name, version: ev.version, height };
+      return { ok: true };
+    case "transfer":
+      // Moving the title UTXO changes who can spend it, not any protocol state.
+      return { ok: true };
+    case "build":
+    case "anchor": {
+      const canonical = state.titles[ev.parcel];
+      const auth = authorize({
+        committed: ev.committed === true,
+        op_index: ev.op_index ?? 0,
+        spends_title_outpoint: ev.spends_title_outpoint === true,
+        title_is_canonical: canonical !== undefined,
+        body_title: ev.title,
+        canonical_title: canonical,
+        title_in_same_tx: ev.title_in_same_tx === true,
+        stale_outpoint: ev.stale_outpoint === true,
+      });
+      if (!auth.ok) return { ignored: auth.why };
+      return ev.type === "build" ? applyBuild(state, ev, height) : applyAnchor(state, ev, height);
+    }
+    default:
+      return { ignored: "unknown" };
   }
-  if (typ === "pack") {
-    state.packs[ev.id] = { id: ev.id, name: ev.name, version: ev.version };
-    return { ok: true };
-  }
-  if (typ === "transfer") {
-    // abstract: mark current title outpoint generation
-    state.parcelLive[ev.parcel] = state.parcelLive[ev.parcel] || {};
-    state.parcelLive[ev.parcel].outpoint_gen = (state.parcelLive[ev.parcel].outpoint_gen || 0) + 1;
-    return { ok: true };
-  }
-  if (typ === "build" || typ === "anchor") {
-    if (!ev.committed) return { ignored: "unbound" };
-    if (!ev.spends_title_outpoint) return { ignored: "no_title_spend" };
-    if (ev.stale_outpoint) return { ignored: "stale_outpoint" };
-    const title = state.titles[ev.parcel];
-    if (!title) return { ignored: "no_title" };
-    if (ev.title !== title) return { ignored: "title_mismatch" };
-    if (typ === "build") return applyBuild(state, ev, height);
-    return applyAnchor(state, ev, height, txIndex);
-  }
-  return { ignored: "unknown" };
 }
 
-function slotKey(parcel, pack) {
-  return `${parcel}|${pack}`;
-}
+const slotKey = (parcel, pack) => `${parcel}|${pack}`;
+const liveOf = (state, parcel) => state.live[parcel] ?? { cell: null, last_change: null, seal_all: false };
 
 function applyBuild(state, ev, height) {
   if (!state.packs[ev.pack]) return { ignored: "no_pack" };
   const k = slotKey(ev.parcel, ev.pack);
-  const prev = state.builds[k] || { parcel: ev.parcel, pack: ev.pack, content: null, sealed: false, applied: 0 };
-  if (prev.sealed) return { ignored: "sealed" };
-  const live = state.parcelLive[ev.parcel] || {};
+  const slot = state.builds[k] ?? { parcel: ev.parcel, pack: ev.pack, content: null, sealed: false, applied: 0 };
+  if (slot.sealed) return { ignored: "sealed" };
+  const live = liveOf(state, ev.parcel);
   if (live.seal_all) return { ignored: "sealed" };
-  if (ev.remove) prev.content = null;
-  else if (ev.content !== undefined) prev.content = ev.content;
-  if (ev.seal) prev.sealed = true;
-  if (ev.seal_all) {
-    state.parcelLive[ev.parcel] = { ...live, seal_all: true };
-  }
-  prev.applied += 1;
-  prev.last_height = height;
-  state.builds[k] = prev;
+  if (ev.remove) slot.content = null;
+  else if (ev.content !== undefined) slot.content = ev.content; // omitted content (seal only) keeps live content
+  if (ev.seal) slot.sealed = true;
+  if (ev.seal_all) state.live[ev.parcel] = { ...live, seal_all: true };
+  slot.applied += 1;
+  slot.last_height = height;
+  slot.last_build = ev.id;
+  state.builds[k] = slot;
   return { ok: true };
 }
 
-function applyAnchor(state, ev, height, txIndex) {
-  const live = state.parcelLive[ev.parcel] || {};
-  if (!cooldownOk(live.lastChange, height)) return { ignored: "cooldown" };
-  const key = ev.priority || { height, tx_index: txIndex, vout: 0 };
-  const from_commit = ev.from_commit === true;
+function applyAnchor(state, ev, height) {
+  const live = liveOf(state, ev.parcel);
+  if (!cooldownOk(live.last_change, height)) return { ignored: "cooldown" };
   if (ev.clear) {
     if (!live.cell) return { ignored: "not_anchored" };
     delete state.cells[live.cell];
-    state.parcelLive[ev.parcel] = { ...live, cell: null, lastChange: height, key: null };
+    state.live[ev.parcel] = { ...live, cell: null, last_change: height };
     return { ok: true };
   }
   const cell = ev.h3_cell;
+  if (live.cell === cell) return { ignored: "already_anchored" };
+  const key = ev.priority ?? { height, tx_index: ev.tx_index ?? 0, vout: 0 };
   const occupant = state.cells[cell];
-  if (occupant && occupant.parcel !== ev.parcel && !canTakeCell(occupant, { key }, height)) {
-    return { ignored: "cell_taken" };
+  let displaced = null;
+  if (occupant) {
+    if (!canTakeCell(occupant, { key }, height)) return { ignored: "cell_taken" };
+    // A strictly earlier commit displaces a pending occupant; the loser is unanchored.
+    displaced = occupant.parcel;
+    state.live[displaced] = { ...liveOf(state, displaced), cell: null };
   }
-  if (live.cell && live.cell !== cell) delete state.cells[live.cell];
-  const district = ev.district || districtOf(cell);
+  if (live.cell) delete state.cells[live.cell];
   state.cells[cell] = {
     h3_cell: cell,
     parcel: ev.parcel,
     key,
-    from_commit,
+    from_commit: ev.from_commit === true,
     anchor_id: ev.id,
-    district,
   };
-  state.parcelLive[ev.parcel] = { ...live, cell, lastChange: height, key };
-  if (district && !state.districts[district]) {
-    state.districts[district] = {
-      district,
-      founder_parcel: ev.parcel,
-      anchor_id: ev.id,
-      key,
-      final_: isFinal(key.height, height),
+  state.live[ev.parcel] = { ...live, cell, last_change: height };
+  return displaced === null ? { ok: true } : { ok: true, displaced };
+}
+
+/**
+ * End of block `tip`: for every district whose founder is not final, the founder is the live
+ * occupant with the lowest priority key (none if the district is empty). It becomes final,
+ * and permanent, once that key is final at `tip`.
+ */
+export function endBlock(state, tip) {
+  const byDistrict = {};
+  for (const c of Object.values(state.cells)) {
+    const d = districtOf(c.h3_cell);
+    if (!byDistrict[d] || priorityCmp(c.key, byDistrict[d].key) < 0) byDistrict[d] = c;
+  }
+  const names = new Set([...Object.keys(byDistrict), ...Object.keys(state.districts)]);
+  for (const d of names) {
+    const cur = state.districts[d];
+    if (cur && cur.final_) continue;
+    const low = byDistrict[d];
+    if (!low) {
+      delete state.districts[d];
+      continue;
+    }
+    state.districts[d] = {
+      district: d,
+      founder_parcel: low.parcel,
+      anchor_id: low.anchor_id,
+      key: low.key,
+      final_: isFinal(low.key.height, tip),
     };
   }
-  return { ok: true };
 }
 
 export { WINDOW, REANCHOR_COOLDOWN };

@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.2.0 — 2026-11-12
+
+Protocol revision. ÐMaps 0.2, ÐLand 0.2, INDEXING 0.2.0. Activation heights are still `null` on mainnet and testnet, so nothing that was live changes; any local index built with an override must be rebuilt from genesis.
+
+**State commitment**
+- `dmaps-checkpoint/1` (the full state rebuilt and hashed after every block) is replaced by `dmaps-state/2`: each block that changes state hashes only its delta onto the previous root, `root = SHA-256(prev_root LF delta_text)`. A block with no change keeps the root. The full text is now an on-demand snapshot, `dmaps-checkpoint/2`, with a `root=` line. New record `L` (parcel live cell, last change, seal_all). INDEXING §8.
+- API: `GET /api/dmaps/state/root[/{height}]`, `GET /api/dmaps/state/delta/{height}`; `/api/dmaps/checkpoint/latest` serves the snapshot at the tip.
+
+**One JSON profile** (INDEXING §2.2): strict UTF-8, no BOM, one object, no duplicate keys, integers only (no `-0`, |n| ≤ 2^53−1), no lone surrogates, depth ≤ 32, strict types, `null` never valid. Canonical inscription ids. Stored content is JCS.
+
+**ÐMaps**
+- A claim must be `i0` and whole in one transaction; `chain` is `"dogecoin"` on every network; `h3_res` is fixed at 9.
+- Stake floor is the exact integer `10 × (1000 + min(G, 5000))²` koinu with `G` = titles confirmed in the previous 2016 blocks (same values as the 0.1 float formula).
+- The stake must be burned to an output `OP_RETURN "DDMAPBURN" u64le(stake)` with value ≥ stake. Fee-as-stake is gone.
+- Removed: `params` op, per-address caps, burst limits, top-level aliases.
+
+**ÐLand**
+- `build`/`anchor` must be `i0` in a bound `ord` envelope whose bound body equals the op body. `dog` envelopes do not carry ÐLand ops.
+- The title spend is checked against the inscriptions carried by the transaction's inputs at the start of the transaction; a title created in the same transaction never authorizes.
+- Full `isValidCell` on anchors; parents are `cellToParent` (the 0.1 bit-twiddle codec produced wrong parents for some cells).
+- Displacement unanchors the loser. Re-anchoring to the same cell is a no-op. A seal without content keeps content. Pack names are stored verbatim. No bitwork.
+- Founders are settled at the end of each block: the lowest live key in the district until that key is final, then permanent.
+- District and region queries are indexed and cursor-paged (`next`); the 500-row caps are gone. Parcels return their title's res-9 cell.
+
+**Conformance**
+- New: `reference/json-profile.mjs`, `reference/dmaps-claim.mjs`, `reference/state.mjs`, `reference/make-vectors.mjs`. Removed: `reference/checkpoint.mjs`.
+- All vector files are generated (`npm run vectors`) and `npm test` fails if they drift. New cases: raw profile `PROF-*`, claims `CLAIM-*`, floors, 256 `geo_batch` heights, H3 parents and invalid cells, a 15-block state log with displacement, founder finalization, seal_all and remove.
+- `h3-js` 4.2.1 is now a pinned dependency (`npm install`).
+
 ## 0.1.4 — 2026-11-12
 
 API documentation only. No protocol rule, schema, vector, or checkpoint changed.

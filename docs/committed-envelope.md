@@ -1,4 +1,4 @@
-> **In this repository:** the committed (content-binding) P2SH lock is **normative** for every ÐLand `build` and `anchor`, and **recommended** for ÐMaps `claim` / `upgrade` / `link` / `params`. The text below is the Dogenals committed-envelope specification. Links to private implementation paths are informative; the lock itself is fully specified here.
+> **In this repository:** the committed (content-binding) P2SH lock is **normative** for every ÐLand `build` and `anchor`, and **recommended** for ÐMaps `claim` / `upgrade` / `link`. The text below is the Dogenals committed-envelope specification. Links to private implementation paths are informative; the lock itself is fully specified here.
 
 # Committed envelope — a P2SH lock that fixes the reveal bytes
 

@@ -2,7 +2,7 @@
 
 **Protocol:** ÐLand
 **Identifier:** `p: "Ð:LAND"`
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Launch Draft
 **Normative language:** RFC 2119
 **Reference indexer:** Dogex, implementing this document and [../../docs/INDEXING.md](../../docs/INDEXING.md) (activation `DOGEX_LAND_ACTIVATION_HEIGHT`, off on mainnet/testnet until announced; `0` on regtest)
@@ -106,10 +106,11 @@ Griefing by the *current* holder (sealing junk, anchoring a cell to sit on it). 
 - `p`: `Ð:LAND`
 - `v`: `"1"`
 - `op`: one of `pack` | `build` | `anchor`
-- JSON UTF-8, inscription payload (Dogenals / Doginals envelope). Parsers SHOULD treat payloads larger than **16 KiB** as invalid.
-- Unknown keys MUST be ignored.
+- An inscription payload (Doginals envelope). The body MUST satisfy the dmaps JSON profile ([INDEXING.md](../../docs/INDEXING.md) §2.2): strict UTF-8, one object, no duplicate keys, integers only, depth ≤ 32, at most **16 KiB**. A body that breaks the profile is not a ÐLand op.
+- Types are strict and `null` is never a valid value for a named field. Unknown keys MUST be ignored.
+- Inscription ids in bodies (`title`, `pack`, `place`, `supersedes`) are canonical: 64 lowercase hex, `i`, and an index with no leading zero.
 
-`pack` MAY use a classic or committed reveal (the pack id *is* the inscription id, so there is no scarce name to snipe). `build` and `anchor` MUST be committed reveals (§6).
+`pack` MAY use a classic or committed reveal and MAY span several transactions (the pack id *is* the inscription id, so there is no scarce name to snipe). `build` and `anchor` MUST be the first inscription (`i0`) of a single-transaction, committed reveal (§6).
 
 ### 5.2 Forbidden
 
@@ -127,9 +128,9 @@ A parcel-state op is **valid** only when all of the following hold at confirmati
 
 1. **Canonical title.** Let `H` be `parcel` (block height) in the body. A canonical ÐMaps v1 `claim` for `H` exists. Call it the **title inscription**.
 2. **Body names the title.** The body MUST include `title` equal to that inscription id (`<txid>i<n>`, lowercase). A missing or mismatched `title` is invalid.
-3. **Committed reveal.** The reveal is a single-transaction inscription whose `vin[0]` is a content-binding redeem ([committed-envelope.md](../../docs/committed-envelope.md)). Unbound / classic reveals are invalid.
-4. **Possession (spend the title).** The reveal transaction MUST include, as an input, the **current title outpoint** (the satpoint of the title inscription as of the start of this transaction). This is the same "you have to hold it to use it" rule as transferring an inscription. A signature from the holder's key that does **not** spend the title UTXO is **not** sufficient.
-5. **Current holder, not a stale one.** The title outpoint in (4) MUST be the location after all earlier transactions in the block have been applied (canonical inscription order). A transfer earlier in the block moves the outpoint; a late reveal that still points at the old outpoint is invalid (and is a double-spend if it tries to spend it).
+3. **Committed reveal.** The op is the reveal's first inscription (`i0`), its whole body is in this one transaction, and `vin[0]` carries an `ord` envelope under the content-binding redeem ([committed-envelope.md](../../docs/committed-envelope.md)) whose bound Doginals body is byte-identical to the op body. Unbound / classic reveals and `dog`-marker envelopes are invalid for these ops.
+4. **Possession (spend the title).** The title inscription MUST be among the inscriptions carried by this transaction's inputs, taken **at the start of the transaction**. This is the same "you have to hold it to use it" rule as transferring an inscription. A signature from the holder's key that does **not** spend the title UTXO is **not** sufficient. A title created by this same transaction does not count.
+5. **Current holder, not a stale one.** "Start of the transaction" means after all earlier transactions in the block have been applied (canonical order). A transfer earlier in the block moves the title; a later reveal that does not spend its new location is invalid. Because the set is taken before any input of this transaction is processed, the result does not depend on the order an indexer walks inputs or outputs.
 6. **Do not authorize with a leftover signature.** Indexers MUST NOT accept BIP-137 / `signmessage` / detached signatures as authorization. Only the on-chain spend in this reveal counts.
 7. The title input's spend MUST be a standard inscription transfer spend (the title continues on exactly one output, per the Doginals / dogex transfer rules already used for all inscriptions). After the tx, builds and the live anchor still refer to the *inscription id*, which has a new satpoint.
 
@@ -160,11 +161,12 @@ A `pack` inscription **is** the pack. Pack id = that inscription id. No unique-n
 
 | Field | Rule |
 | --- | --- |
-| `name` | REQUIRED. UTF-8, 1–64 code points, trim, not empty. Not unique. Display / search only. |
-| `version` | REQUIRED. Printable ASCII, 1–32 chars (recommend semver). |
-| `schema` | Optional object (JSON Schema or a pack-defined shape). |
-| `schema_uri` | Optional URI (`ipfs:`, `https:`, or an inscription id). At least one of `schema` or `schema_uri` MUST be present. |
-| `note` | Optional, max 500 chars. |
+| `name` | REQUIRED. String, 1–64 code points. Stored verbatim (indexers MUST NOT trim or normalize it). Not unique. Display / search only. |
+| `version` | REQUIRED. Printable ASCII (`0x20`–`0x7e`), 1–32 chars (recommend semver). |
+| `schema` | Optional object (JSON Schema or a pack-defined shape). Stored as JCS text. |
+| `schema_uri` | Optional string, 1–512 code points (`ipfs:`, `https:`, or an inscription id). At least one of `schema` or `schema_uri` MUST be present. |
+| `note` | Optional string, max 500 code points. |
+| `supersedes` | Optional canonical inscription id of an older pack. |
 
 A pack is immutable. A new version is a new inscription (new pack id). A pack MAY include `supersedes` (inscription id of an older pack) as a hint; indexers MUST store it and MUST NOT migrate existing builds automatically.
 
@@ -191,13 +193,15 @@ Attaches pack-typed content to a parcel. The live build for `(parcel, pack_id)` 
 
 | Field | Rule |
 | --- | --- |
-| `parcel` | REQUIRED. JSON integer, the ÐMaps `block_height`. |
+| `parcel` | REQUIRED. JSON integer `0 ≤ n ≤ 2^32 − 1`, the ÐMaps `block_height`. |
 | `title` | REQUIRED. Canonical claim inscription id for `parcel` (§6.2). |
 | `pack` | REQUIRED. Existing `pack` inscription id. Unknown pack → invalid. |
-| `content` | Object, unless `remove` is true. Max 16 KiB JSON. |
+| `content` | Optional object. Stored as JCS text; the state hash covers it. |
 | `remove` | Optional bool. If `true`, `content` MUST be omitted; the live build for this pack is cleared (history remains). |
 | `seal` | Optional bool. If `true`, this `(parcel, pack)` slot is frozen after the apply. Later builds for that slot are ignored. |
 | `seal_all` | Optional bool. If `true`, every pack slot on the parcel is frozen (no further builds). Does not clear existing content. Does not seal anchors. |
+
+A build MUST carry at least one of `content`, `remove: true`, `seal: true`, `seal_all: true`. A `seal` or `seal_all` without `content` keeps the live content as it is.
 
 **Supersede.** A valid new `build` for the same `(parcel, pack)` replaces the live content (unless the slot or parcel is sealed).
 
@@ -226,7 +230,7 @@ The holder pins the parcel to a **chosen** H3 cell at a fixed fine resolution. T
 
 `H3_ANCHOR_RES` = **12**.
 
-`h3_res` MUST be 12. `h3_cell` MUST be a canonical lowercase H3 v4 *cell* string (mode = 1) at resolution 12, with no `0x` prefix and no leading zeros (cells start with `8`, 15 hex digits). Indexers MUST re-read resolution and mode from the index bits and MUST reject a mismatch.
+`h3_res` MUST be 12. `h3_cell` MUST be a canonical lowercase H3 v4 *cell* string at resolution 12, exactly as H3 4.2.1 `cellToString` prints it (15 hex digits starting with `8`, no `0x`, no uppercase), and H3 `isValidCell` MUST be true: mode 1, reserved bits zero, a valid base cell, every digit finer than res 12 set to 7, no digit coarser than res 12 set to 7, and no deleted pentagon subsequence. Indexers MUST reject anything else. The `invalid_cells` and `h3` vectors check this against h3-js.
 
 **Why 12.** H3 res 12 has an average edge of about 9.4 m and an area of about 307 m² — a shop front or park entrance, in the same "findable but not a doorstep GNSS trace" spirit as ÐGPS fine places (~11 m). Res 11 (~20 m) is coarse for a pin. Res 13 (~3.7 m) is inside typical phone-GPS noise and invites fights over a doorway. One global fine resolution keeps a single uniqueness key.
 
@@ -239,11 +243,13 @@ Priority is **exactly** ÐNS §5.7 (and dogex `commit_window`):
 - **W = 30** blocks.
 - Priority key, lower wins: `(commit_height, commit_tx_index, commit_vout)` when the reveal is a single-tx committed inscription and the spent commit confirmed at most W blocks before the reveal; otherwise `(reveal_height, reveal_tx_index, 0)`.
 - A free cell is taken by the first valid anchor.
-- A **pending** occupant (tip ≤ key_height + W) MAY be displaced by a strictly lower key; the loser is unanchored (missed claim, logged).
+- A **pending** occupant (tip ≤ key_height + W) MAY be displaced by a strictly lower key; the loser is unanchored (its live cell becomes none, its cooldown clock is unchanged).
 - A **final** occupant (tip > key_height + W) MUST NOT be displaced.
 - This is the only cell-ordering rule, from genesis. Reindex from genesis under this rule if an older binary differed.
 
-Optional `bitworkc` / `bitworkr` on an anchor follow ÐNS: a claim the txid does not meet is void.
+ÐLand has no bitwork rule. `bitworkc` / `bitworkr` keys on an anchor are ignored like any unknown key.
+
+An anchor to the cell the parcel already holds changes nothing (`already_anchored`): it does not refresh the key or the cooldown.
 
 ### 9.3 One live cell per parcel; atomic switch
 
@@ -284,14 +290,15 @@ Normative rollup keys use H3 parent cells of the live anchor (H3 v4 `cellToParen
 | **District** | 7 | Neighborhood (~5 km², ~1.2 km edge) | Early communities can fill a district; founder badge lives here |
 | **Region** | 4 | City / metro (~1,770 km², ~22.6 km edge) | A globe that starts almost empty still has a coarse story |
 
-Indexers MUST store, for each live anchor: `h3_cell` (res 12), `district` = parent at res 7, `region` = parent at res 4. Parents are bit-defined in H3 (set resolution, set finer digits to the unused value 7); any correct H3 v4 parent function is conformant.
+Indexers MUST store, for each live anchor: `h3_cell` (res 12), `district` = `cellToParent(cell, 7)`, `region` = `cellToParent(cell, 4)` (H3 4.2.1). For example `8c28308280f37ff` → district `872830828ffffff` → region `8428309ffffffff`. The `h3` vectors list parents to check against.
 
 ### 10.1 District Founder (normative fact, non-consensus badge)
 
-The **Founder** of a district is the parcel whose *first final* occupant-anchor in that district occurred first in canonical commit-first order (the winning anchor that first made the district non-empty *and* whose occupancy later became final).
+At the end of every block `h`, for every district whose founder is not final, the **Founder** is the live occupant in that district with the lowest priority key (§9.2). If the district has no live occupant, it has no founder.
 
-- Provisional founders MAY be shown while the first occupant is still pending; a lower-key first occupant can still replace them until final.
-- Once the founder row is **final**, the badge is **permanent** (recomputable): later re-anchors, sales, or an empty district after everyone leaves do **not** reassign it. A reorg of the founding block may roll it back, like any other index fact.
+- The founder is **provisional** while its key is pending. A lower-key occupant that arrives (or a departure of the founder) changes it at the next end of block.
+- It becomes **final** once its key is final at `h` (`h > key_height + W`). A final founder is **permanent** (recomputable): later re-anchors, sales, or an empty district after everyone leaves do **not** reassign it. A reorg of the block that made it final may roll it back, like any other index fact.
+- The founder record is consensus state (it is in the state root, INDEXING §8). The badge is a standing/UI fact, not a protocol privilege.
 - Founder is a standing/UI badge, not a protocol privilege. Founders cannot evict neighbors or levy a fee.
 
 ### 10.2 Flywheel (informative)
@@ -356,19 +363,22 @@ Reference: [standing.mjs](standing.mjs).
 
 ## 12. Indexer state and algorithm
 
-For each pack id: name, version, schema/uri, inscription id, height.
+Consensus state is the record set of [INDEXING.md](../../docs/INDEXING.md) §8.2:
 
-For each `(parcel, pack)`: live content or empty, sealed, last build id, history.
+- **T** titles: `block_height → claim inscription id`.
+- **P** packs: id, name, version (schema, schema_uri, note, supersedes and height are stored but not in the line).
+- **B** build slots `(parcel, pack)`: applied count, sealed, SHA-256 of the live content as JCS (or `none`).
+- **L** parcel live: current cell or none, `last_change`, `seal_all`.
+- **C** cells: occupant parcel, priority key, `from_commit`, anchor id.
+- **D** district founders: parcel, anchor id, final, key.
 
-For each parcel: title id, live cell or none, last_change height, seal_all, last successful priority key if anchored.
+After every block that changes these records, the indexer chains a 32-byte **state root** over the block's delta (INDEXING §8.4). Nothing is written for a block that changes nothing, and there is no per-block full checkpoint. A full `dmaps-checkpoint/2` snapshot is printed on demand.
 
-For each res-12 cell: occupant parcel, priority key, from_commit, bound, status pending|final, missed claims.
+Indexes (derived, not consensus): live cells per district in priority order, live-cell counts per district per region, districts with a pending founder, and canonical-claim counts per height for the ÐMaps stake floor. They make district and region queries and founder settlement O(change) per block.
 
-For each district: founder parcel (provisional|final), live set.
+**Claim indexing.** LAND MUST resolve the canonical ÐMaps v1 title with the claim rules of INDEXING §4 (derived cell, stake floor, burn). An indexer that applies LAND MUST apply ÐMaps. Legacy `{n}.dogemap` is not a title.
 
-**Claim indexing.** LAND MUST resolve the canonical ÐMaps v1 title. The reference indexer records first-seen valid `Ð:MAPS` `claim` bodies (including nested `title.block_height`, §6.1 of ÐMaps) when LAND is enabled, and also reads the ÐMaps claim index when that protocol is enabled. Legacy `{n}.dogemap` is not a title.
-
-**Order.** For each inscription in canonical order: if `p` is `Ð:LAND`, parse; apply `pack` first-class; for `build`/`anchor`, apply §6 then §8/§9. Reorg: undo the block.
+**Order.** For each transaction in canonical order: apply any ÐMaps claim; if `p` is `Ð:LAND`, parse; apply `pack`; for `build`/`anchor`, apply §6 then §8/§9. At the end of the block settle founders (§10.1) and chain the root. Reorg: undo the block (the block's delta is exactly what changed).
 
 ---
 
@@ -376,14 +386,17 @@ For each district: founder parcel (provisional|final), live set.
 
 | Method | Path | Returns |
 | --- | --- | --- |
-| GET | `/api/land/status` | activation, tip, window, resolutions, `neighbors_indexed` |
-| GET | `/api/land/parcel/{block}` | title, builds, live anchor, district/region, founder flag, standing/1, cooldown |
-| GET | `/api/land/cell/{h3}` | occupant, priority, status, missed |
-| GET | `/api/land/packs` | list (`after`, `limit`) |
-| GET | `/api/land/district/{h3}` | founder, live parcels, standing |
-| GET | `/api/land/region/{h3}` | live districts, standing |
+| GET | `/api/land/status` | network, activation, tip, window, resolutions, state root, `neighbors_indexed` |
+| GET | `/api/land/parcel/{block}` | title and its res-9 cell, builds, live anchor, district/region, founder flag, standing/1, cooldown |
+| GET | `/api/land/cell/{h3}` | occupant, priority, status |
+| GET | `/api/land/packs` | list (`after`, `limit`, `next`) |
+| GET | `/api/land/district/{h3}` | founder, live-cell count, live parcels in priority order (`after`, `limit`, `next`) |
+| GET | `/api/land/region/{h3}` | districts with live cells and their counts (`after`, `limit`, `next`) |
+| GET | `/api/dmaps/state/root[/{height}]`, `/api/dmaps/state/delta/{height}` | state root chain (INDEXING §8) |
 
-Capabilities (`GET /api/doginals/capabilities`) MUST include a `land` object: marker, `h3_res` 12, district 7, region 4, `holder_spend: true`, `commit_first: true`.
+Every list is cursor-paged and served from an index; none is capped. Full shapes: [docs/API.md](../../docs/API.md).
+
+Capabilities (`GET /api/doginals/capabilities`) MUST describe the network the node indexes and include a `land` object: `network`, marker, `h3_res` 12, district 7, region 4, `holder_spend: true`, `commit_first: true`, `state_version`.
 
 ---
 
@@ -404,10 +417,11 @@ Bitmaps do **not** specify:
 
 ## 15. Examples
 
-See [examples/](examples/) and [vectors/conformance.json](vectors/conformance.json). Adversarial vectors (MUST be tested by a conformant indexer) include: non-holder build; stale-holder build after transfer; unbound (classic) build; body/`title` mismatch; replay of a spent title outpoint; front-run anchor lost to an earlier commit; two anchors on one cell (lower key wins; final not displaced); re-anchor inside cooldown; reorg of a founding anchor.
+See [examples/](examples/), [vectors/conformance.json](vectors/conformance.json) and the block log in [../../vectors/indexer-state.json](../../vectors/indexer-state.json). Adversarial vectors (MUST be tested by a conformant indexer) include: raw JSON-profile cases (BOM, duplicate keys, floats, `-0`, lone surrogates, depth); non-holder build; stale-holder build after transfer; an op that is not `i0`; a title created in the same transaction; unbound (classic) build; body/`title` mismatch; front-run anchor lost to an earlier commit and the loser unanchored; two anchors on one cell (lower key wins; final not displaced); re-anchor to the same cell; re-anchor inside cooldown; seal without content; founder replaced while pending, then final; invalid H3 cells; reorg of a founding anchor.
 
 ---
 
 ## 16. Changelog
 
+- **0.2** — Strict JSON profile and canonical ids; `build`/`anchor` must be `i0` in a bound `ord` envelope; title spend checked against the start-of-transaction spent set and never by a title created in the same transaction; full `isValidCell` check and `cellToParent` parents; displacement unanchors the loser; same-cell re-anchor is a no-op; seal without content keeps content; pack names verbatim; founders settled at end of block from the lowest live key; no bitwork; incremental `dmaps-state/2` root replaces the per-block checkpoint; paged district/region queries.
 - **0.1** — Initial launch draft: packs, holder-spend builds, res-12 anchors with commit-first, district/region rollups, standing/1.

@@ -1,10 +1,15 @@
 {
   "name": "dmaps-spec",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Canonical public spec for \u00d0Maps and \u00d0Land",
   "scripts": {
-    "test": "node --test protocols/dland/codec.test.mjs protocols/dland/standing.test.mjs reference/indexer-state.test.mjs"
+    "test": "node --test protocols/dland/codec.test.mjs protocols/dland/standing.test.mjs reference/json-profile.test.mjs reference/dmaps-claim.test.mjs reference/indexer-state.test.mjs",
+    "vectors": "node reference/make-vectors.mjs"
+  },
+  "dependencies": {
+    "h3-js": "4.2.1"
   },
   "engines": {
     "node": ">=18"
