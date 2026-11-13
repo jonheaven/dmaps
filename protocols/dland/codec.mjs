@@ -1,6 +1,6 @@
 /**
  * ÐLand reference codec: parse ops under the dmaps JSON profile, H3 checks (h3-js 4.2.1),
- * priority, cooldown, and the authorization policy. Normative text: spec.md and
+ * commit-first priority, and the holder authorization policy. Normative text: spec.md and
  * ../../docs/INDEXING.md. Dogex (Rust) implements the same rules independently.
  */
 import { isValidCell, getResolution, cellToParent } from "h3-js";
@@ -11,7 +11,6 @@ export const H3_ANCHOR_RES = 12;
 export const H3_DISTRICT_RES = 7;
 export const H3_REGION_RES = 4;
 export const WINDOW = 30;
-export const REANCHOR_COOLDOWN = 144;
 export const MAX_PAYLOAD = 16 * 1024;
 export const MAX_SCHEMA_URI = 512;
 
@@ -24,7 +23,7 @@ export function parse(body) {
   if (!r.ok) return r;
   const v = r.value;
   if (v.p !== MARKER) return { ok: false, why: "p" };
-  if (v.v !== "1") return { ok: false, why: "v" };
+  // `v` is not read: there are no versions inside the protocol.
   if (v.op === "pack") return parsePack(v);
   if (v.op === "build") return parseBuild(v);
   if (v.op === "anchor") return parseAnchor(v);
@@ -68,27 +67,25 @@ function parseBuild(v) {
   const bad = parseParcelTitle(v);
   if (bad) return bad;
   if (!isInscriptionId(v.pack)) return { ok: false, why: "pack" };
-  for (const k of ["remove", "seal", "seal_all"]) {
+  for (const k of ["remove", "seal"]) {
     if (has(v, k) && !isBool(v[k])) return { ok: false, why: k };
   }
   const remove = v.remove === true;
   const seal = v.seal === true;
-  const seal_all = v.seal_all === true;
   const hasContent = has(v, "content");
   if (hasContent && !isObj(v.content)) return { ok: false, why: "content" };
   if (remove && hasContent) return { ok: false, why: "content_on_remove" };
-  if (!remove && !hasContent && !seal && !seal_all) return { ok: false, why: "content" };
+  if (!remove && !hasContent && !seal) return { ok: false, why: "content" };
   return {
     ok: true,
     op: "build",
     parcel: v.parcel,
     title: v.title,
     pack: v.pack,
-    // undefined = leave live content as it is (seal / seal_all without new content)
+    // undefined = leave live content as it is (seal without new content)
     content: hasContent ? v.content : undefined,
     remove,
     seal,
-    seal_all,
   };
 }
 
@@ -155,11 +152,6 @@ export function canTakeCell(existing, incoming, tip) {
   if (!existing) return true;
   if (isFinal(existing.key.height, tip)) return false;
   return priorityCmp(incoming.key, existing.key) < 0;
-}
-
-export function cooldownOk(lastChange, height) {
-  if (lastChange == null) return true;
-  return height >= lastChange + REANCHOR_COOLDOWN;
 }
 
 /**

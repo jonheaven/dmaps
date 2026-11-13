@@ -11,7 +11,7 @@ import { seedLatLng } from "./dmaps-geo.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const vec = JSON.parse(readFileSync(join(root, "vectors/indexer-state.json"), "utf8"));
-const meta = { network: vec.network, maps_activation: vec.maps_activation, land_activation: vec.land_activation };
+const meta = { network: vec.network };
 
 test("published vectors are exactly what the reference generates (run `npm run vectors`)", () => {
   for (const [rel, doc] of Object.entries(buildAll())) {
@@ -74,13 +74,19 @@ test("a delta applied to the previous records yields the next records", () => {
 
 test("scenario covers the edge cases it claims to", () => {
   const all = vec.blocks.flatMap((b) => b.results);
-  for (const why of ["duplicate", "invalid_claim", "no_title_spend", "not_vin0", "no_pack", "stale_outpoint", "unbound", "title_mismatch", "cooldown", "sealed", "already_anchored"]) {
+  for (const why of ["duplicate", "dogemap_text", "media_type", "time_travel", "no_title", "no_title_spend", "not_vin0", "no_pack", "stale_outpoint", "unbound", "title_mismatch", "sealed", "already_anchored", "cell_taken", "not_anchored"]) {
     assert.ok(all.includes(why), why);
   }
   const quiet = vec.blocks.find((b) => b.height === 132);
   assert.deepEqual(quiet.delta, []);
-  const finalize = vec.blocks.find((b) => b.height === 133);
-  assert.match(finalize.delta[0], /^\+D 872830828ffffff 2 \S+ 1 /);
+  // Every record line is one of the four sections.
+  for (const b of vec.blocks) for (const e of b.delta) assert.match(e, /^[+-][TPBC] /);
+});
+
+test("text and JSON spellings share one title slot", () => {
+  const first = vec.blocks[0];
+  assert.deepEqual(first.results.slice(0, 5), ["ok", "ok", "ok", "duplicate", "duplicate"]);
+  assert.ok(first.delta.includes("+T 0 " + "a".repeat(64) + "i0"));
 });
 
 test("official geo seed is stable", () => {

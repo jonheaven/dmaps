@@ -1,42 +1,74 @@
 {
-  "spec": "dmaps-state/2",
-  "checkpoint": "dmaps-checkpoint/2",
+  "spec": "dmaps-state/3",
+  "checkpoint": "dmaps-checkpoint/3",
   "h3": "4.2.1",
   "network": "regtest",
-  "maps_activation": 0,
-  "land_activation": 0,
-  "description": "Worked indexer log. Events are an abstract encoding of confirmed inscriptions that already passed parsing; each carries the chain facts an indexer reads from the transaction. A conformant indexer MUST produce the listed delta and state_root after every height, and the listed snapshot_hash at heights that list one. Blocks with no delta leave the root unchanged.",
+  "description": "Worked indexer log. A maps_claim event is an inscription (body, content type) whose body is complete in that block; the other events are an abstract encoding of confirmed ÐLand inscriptions that already passed parsing, each with the chain facts an indexer reads from the transaction. Events are in canonical order. A conformant indexer MUST produce the listed results, delta and state_root after every height, and the listed snapshot_hash. Blocks with no delta leave the root unchanged.",
   "blocks": [
     {
       "height": 100,
       "events": [
         {
           "type": "maps_claim",
-          "block_height": 0,
-          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0"
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "body": "0.dogemap",
+          "content_type": "text/plain;charset=utf-8",
+          "comment": "the existing text convention"
         },
         {
           "type": "maps_claim",
-          "block_height": 1,
-          "id": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi0"
+          "id": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi0",
+          "body": "{\"p\":\"Ð:MAPS\",\"op\":\"claim\",\"title\":{\"block_height\":1},\"v\":\"1\",\"chain\":\"dogecoin\",\"geo\":{\"h3_res\":9,\"h3_cell\":\"8928308280fffff\"},\"fair\":{\"stake_koinu\":\"1\",\"stake_burn\":true}}",
+          "content_type": "application/json",
+          "comment": "a 0.1-era JSON claim: only p, op and title.block_height are read"
         },
         {
           "type": "maps_claim",
-          "block_height": 2,
-          "id": "9999999999999999999999999999999999999999999999999999999999999999i0"
+          "id": "9999999999999999999999999999999999999999999999999999999999999999i0",
+          "body": "{\"p\":\"Ð:MAPS\",\"op\":\"claim\",\"title\":{\"block_height\":2}}",
+          "content_type": "text/plain;charset=utf-8"
         },
         {
           "type": "maps_claim",
-          "block_height": 0,
           "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeei0",
-          "comment": "duplicate: first valid claim already won"
+          "body": "0.dogemap",
+          "content_type": "text/plain;charset=utf-8",
+          "comment": "duplicate: the first claim already won"
         },
         {
           "type": "maps_claim",
-          "block_height": 3,
+          "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeei1",
+          "body": "{\"p\":\"Ð:MAPS\",\"op\":\"claim\",\"title\":{\"block_height\":0}}",
+          "content_type": "application/json",
+          "comment": "duplicate in the other spelling"
+        },
+        {
+          "type": "maps_claim",
           "id": "7777777777777777777777777777777777777777777777777777777777777777i0",
-          "invalid": true,
-          "comment": "failed claim validity (for example no burn)"
+          "body": "03.dogemap",
+          "content_type": "text/plain;charset=utf-8",
+          "comment": "leading zero"
+        },
+        {
+          "type": "maps_claim",
+          "id": "7777777777777777777777777777777777777777777777777777777777777777i1",
+          "body": " 3.dogemap",
+          "content_type": "text/plain;charset=utf-8",
+          "comment": "no trimming"
+        },
+        {
+          "type": "maps_claim",
+          "id": "7777777777777777777777777777777777777777777777777777777777777777i2",
+          "body": "3.dogemap",
+          "content_type": "image/png",
+          "comment": "not a text or JSON inscription"
+        },
+        {
+          "type": "maps_claim",
+          "id": "7777777777777777777777777777777777777777777777777777777777777777i3",
+          "body": "101.dogemap",
+          "content_type": "text/plain;charset=utf-8",
+          "comment": "block 101 does not exist yet"
         }
       ],
       "results": [
@@ -44,7 +76,11 @@
         "ok",
         "ok",
         "duplicate",
-        "invalid_claim"
+        "duplicate",
+        "dogemap_text",
+        "dogemap_text",
+        "media_type",
+        "time_travel"
       ],
       "delta": [
         "+T 0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
@@ -52,8 +88,8 @@
         "+T 2 9999999999999999999999999999999999999999999999999999999999999999i0"
       ],
       "delta_text_sha256": "4a3ae809e41d6428cc7c09d03bdf2657fe5acd47fbdfe2bd68a925e04acc2c2a",
-      "state_root": "398d9c7df50b8f907288e14a0482e227c8a23840659c9675c7359efaae5bc38e",
-      "snapshot_hash": "bac1f3f1b9345902b9fb545e64a7fea2d2b6db4b463cee1f61112b1f0611f7a0"
+      "state_root": "4cdcdf583f6d352d3b1276fac4eeea019823f80528baccaf6466d3b4c09c6481",
+      "snapshot_hash": "8a2959622cc0ba128a014fdd4f9a0d9ae0fb86b513a4bb51562f3e8957fcadf7"
     },
     {
       "height": 101,
@@ -75,21 +111,30 @@
           "id": "8888888888888888888888888888888888888888888888888888888888888888i0",
           "name": "lore",
           "version": "1"
+        },
+        {
+          "type": "maps_claim",
+          "id": "6666666666666666666666666666666666666666666666666666666666666666i9",
+          "body": "101.dogemap",
+          "content_type": "text/plain;charset=utf-8",
+          "comment": "a block may be claimed in itself"
         }
       ],
       "results": [
         "ok",
         "ok",
+        "ok",
         "ok"
       ],
       "delta": [
+        "+T 101 6666666666666666666666666666666666666666666666666666666666666666i9",
         "+P 8888888888888888888888888888888888888888888888888888888888888888i0 \"lore\" \"1\"",
         "+P bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 \"street-scene\" \"1.0.0\"",
         "+P ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 \"Ð shop \\\"sign\\\"\" \"2.0.0-beta\""
       ],
-      "delta_text_sha256": "e5333f4248cec8b9d36c20d8cab470d99e51080de36a3932c3d1a4092fa78238",
-      "state_root": "370dd9bd0f16671bf818d3570846f185b949fe82120548271823169ee5a1001f",
-      "snapshot_hash": "ff27a94737d68d7e7ecd3704602e880e8aaca08c35dc555a00e50aff9d0cae3f"
+      "delta_text_sha256": "f936721e1b291025d4f4c92d56bda1e37084ccfea701a196f5c79da658fd84ff",
+      "state_root": "1bb0aab4a5eda1a416c07caef4feeec298a995b6584e92a1da2851e99c9c840b",
+      "snapshot_hash": "810f934ec54e4d58604a4c4be21607b2d3cdd257b308c8a99917ff87fc637aa0"
     },
     {
       "height": 102,
@@ -134,7 +179,7 @@
             "model": "hacked"
           },
           "tx_index": 3,
-          "comment": "second inscription in the tx, not the vin[0] body"
+          "comment": "not the vin[0] inscription"
         },
         {
           "type": "build",
@@ -149,20 +194,35 @@
           },
           "tx_index": 4,
           "comment": "unknown pack"
+        },
+        {
+          "type": "build",
+          "parcel": 3,
+          "title": "7777777777777777777777777777777777777777777777777777777777777777i2",
+          "pack": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0",
+          "id": "4444444444444444444444444444444444444444444444444444444444444444i1",
+          "committed": true,
+          "spends_title_outpoint": true,
+          "content": {
+            "x": 1
+          },
+          "tx_index": 5,
+          "comment": "parcel 3 has no title"
         }
       ],
       "results": [
         "ok",
         "no_title_spend",
         "not_vin0",
-        "no_pack"
+        "no_pack",
+        "no_title"
       ],
       "delta": [
-        "+B 0 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 1 0 d73f9da524d6730b9bf84ccc9f37558499827be14db2c9cfaf21eb37385d87b1"
+        "+B 0 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 0 d73f9da524d6730b9bf84ccc9f37558499827be14db2c9cfaf21eb37385d87b1"
       ],
-      "delta_text_sha256": "8560d8e2563ba914d0874c8fcaaed3d8a2a4a0928e1b8187f0dc1b658609d9b3",
-      "state_root": "ea1d06dd6a95ef753d91c01863948909bd30ad3e33e79e611a184a8dbe3e6246",
-      "snapshot_hash": "69af722d097be1aaae0783f72d1544bdd00a3ff5cb3fb84f8f2117e82476b2f7"
+      "delta_text_sha256": "def28652df1f64ea642056e3bd7c041493ffedac915eff9607bfdf8dc01b8e0f",
+      "state_root": "d4be2c5031359ab858a16868360ca569115a54b369cafa57bf345c2e3933c2eb",
+      "snapshot_hash": "3edf13364e00523605c602254be3439f5611fffba9173fd6ec84a1a027bc0625"
     },
     {
       "height": 103,
@@ -241,8 +301,8 @@
       ],
       "delta": [],
       "delta_text_sha256": null,
-      "state_root": "ea1d06dd6a95ef753d91c01863948909bd30ad3e33e79e611a184a8dbe3e6246",
-      "snapshot_hash": "cccdd3b14a05a25ceff77799099ba039338133b1d85d9c731d5df9cec2260803"
+      "state_root": "d4be2c5031359ab858a16868360ca569115a54b369cafa57bf345c2e3933c2eb",
+      "snapshot_hash": "29f8e61bfcda5b3fdcb432f07ec047f8c7b43bd74a98909adcf361886da923fa"
     },
     {
       "height": 104,
@@ -255,7 +315,6 @@
           "h3_cell": "8c28308280f37ff",
           "committed": true,
           "spends_title_outpoint": true,
-          "from_commit": true,
           "priority": {
             "height": 103,
             "tx_index": 0,
@@ -268,13 +327,11 @@
         "ok"
       ],
       "delta": [
-        "+L 0 8c28308280f37ff 104 0",
-        "+C 8c28308280f37ff 0 103 0 0 1 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0",
-        "+D 872830828ffffff 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0 0 103 0 0"
+        "+C 8c28308280f37ff 0 103 0 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0"
       ],
-      "delta_text_sha256": "9858e4cc59b45a4d41554dc85f24e38c060671ee20b61fe1e24688a05ef60624",
-      "state_root": "1b06baf48a6945c31c85e7e1973d4c58d3602050cfb4f69e96ae8e297ee5e85e",
-      "snapshot_hash": "e05e9902444b1ddf8a302756a9ad2432ccfa6751d72e538b71b67742f93b579a"
+      "delta_text_sha256": "3e74ca28b57bf2375664cad6ac2c6e9fc356a53ecd08481b6bc110d488b251ea",
+      "state_root": "e77916c8e8a52833f3679c49be4801d7d681e817ad7b1db04e4118d26962a832",
+      "snapshot_hash": "44c30ae56a72c54514ab5db23447adb451b8a8114a667fc52c5cbf1bfa5c6f6b"
     },
     {
       "height": 105,
@@ -287,7 +344,6 @@
           "h3_cell": "8c28308280f35ff",
           "committed": true,
           "spends_title_outpoint": true,
-          "from_commit": true,
           "priority": {
             "height": 104,
             "tx_index": 2,
@@ -300,12 +356,11 @@
         "ok"
       ],
       "delta": [
-        "+L 1 8c28308280f35ff 105 0",
-        "+C 8c28308280f35ff 1 104 2 0 1 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci1"
+        "+C 8c28308280f35ff 1 104 2 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci1"
       ],
-      "delta_text_sha256": "01c7da90f47435e0141de3bca6ece4f4aad57293f306f7d2dad201d5e04021c4",
-      "state_root": "64bbbfbb0abb216eec280fe90df4ea35b4dcb1fbd4e92601c8610957c65bf4f6",
-      "snapshot_hash": "086c52be03f07dfb4511591306bc8d72293e87ae2733240e219461b71db1bcb7"
+      "delta_text_sha256": "a620ffdb3f78b6e80b2b1578da2dbb1e7e7ded1b479d9be83c321a28123c7087",
+      "state_root": "d5848cf870f06a6b6a7a7664dfc73347fe50399b5dd6414afa0f87e579715483",
+      "snapshot_hash": "cbea3e9a0794353f97dcde1aaf8e603a5327c3315fe675fccca802d0354759af"
     },
     {
       "height": 106,
@@ -319,7 +374,7 @@
           "committed": true,
           "spends_title_outpoint": true,
           "tx_index": 1,
-          "comment": "cooldown: 106 < 105 + 144"
+          "comment": "move: no cooldown; A2 is released"
         },
         {
           "type": "build",
@@ -342,15 +397,17 @@
         }
       ],
       "results": [
-        "cooldown",
+        "ok",
         "ok"
       ],
       "delta": [
-        "+B 0 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 1 1 4236b286d92e8a1b9da41a67e6512c4b8599a13b55735f0969822f7d1a6534d8"
+        "+B 0 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 1 4236b286d92e8a1b9da41a67e6512c4b8599a13b55735f0969822f7d1a6534d8",
+        "-C 8c28308280f35ff",
+        "+C 8cbe0e35c0943ff 1 106 1 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci2"
       ],
-      "delta_text_sha256": "de5f6cdd2c620df69cbfb750d2dd015a34f819bdb827229a2b964436d01c7d18",
-      "state_root": "1692a9e3394c2029a949b8202072c21dffb089f491dab3a602ec9a5ed1554ab3",
-      "snapshot_hash": "85c993a51f133b5ff31876f33803dec89f2be94f5f60d04fd460e542dd0a1586"
+      "delta_text_sha256": "c0eafd031434ba9b7d87b8b32606eb768083f86c82a18547f6a8da8a2dd52094",
+      "state_root": "6f4e32ac74e8828ba4d26b4e9282786c010db0efa7e408701e003b470b19a3a3",
+      "snapshot_hash": "45a5a9c5832855380d20135f5f73a00f714f9950e0223a59505dbbf5b73e8d41"
     },
     {
       "height": 107,
@@ -387,11 +444,11 @@
         "sealed"
       ],
       "delta": [
-        "+B 0 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 2 1 d73f9da524d6730b9bf84ccc9f37558499827be14db2c9cfaf21eb37385d87b1"
+        "+B 0 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 1 d73f9da524d6730b9bf84ccc9f37558499827be14db2c9cfaf21eb37385d87b1"
       ],
-      "delta_text_sha256": "10e39899140e65c40afc40c2c78189ffbe4cc162c73b92db2e41172763406325",
-      "state_root": "ca60382962c11478f8a63fc73f6d4bc693008025229982fe04c5f706ab4f2c68",
-      "snapshot_hash": "03e73f8e8be0d5af111245add16338b6c0a2609a8d4a9d0af07602fdace28a04"
+      "delta_text_sha256": "cceec1be7a1871bf021d2181fd5035a1ab94d6dd1b7a2aa01f033cad65dfa75f",
+      "state_root": "eb00ed901f90c0af3f08b61270937f9af1b555a84eedffef838f30c6d0be76b8",
+      "snapshot_hash": "f9d9191551b6f0efb9d04b94dae3cd3f44b82e9be907851e966ba9799843caba"
     },
     {
       "height": 108,
@@ -404,28 +461,41 @@
           "h3_cell": "8c28308280f37ff",
           "committed": true,
           "spends_title_outpoint": true,
-          "from_commit": true,
           "priority": {
             "height": 102,
             "tx_index": 5,
             "vout": 1
           },
           "tx_index": 1,
-          "comment": "earlier commit displaces parcel 0 (pending); parcel 0 is unanchored; founder becomes parcel 2"
+          "comment": "earlier commit displaces parcel 0 (pending); parcel 0 is unpinned"
+        },
+        {
+          "type": "anchor",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci4",
+          "h3_cell": "8c28308280f37ff",
+          "committed": true,
+          "spends_title_outpoint": true,
+          "priority": {
+            "height": 103,
+            "tx_index": 0,
+            "vout": 0
+          },
+          "tx_index": 2,
+          "comment": "the loser cannot take it back with its later key"
         }
       ],
       "results": [
-        "ok"
+        "ok",
+        "cell_taken"
       ],
       "delta": [
-        "+L 0 - 104 0",
-        "+L 2 8c28308280f37ff 108 0",
-        "+C 8c28308280f37ff 2 102 5 1 1 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3",
-        "+D 872830828ffffff 2 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3 0 102 5 1"
+        "+C 8c28308280f37ff 2 102 5 1 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3"
       ],
-      "delta_text_sha256": "0ecf14080f310416448a2dd09aa6ff74fb1b68389bd46f8ed9591e01de14f14d",
-      "state_root": "0b5bfc54bd6d8d6bdacb211d5962c5d40f2e0ce79df698429d2757c0401b1e56",
-      "snapshot_hash": "a6e43db8de2d7045f5dfc9d18f90ae065df94e9db2c419b8f0df72a0d0eed3b2"
+      "delta_text_sha256": "1a0ca409217394f050c2ed7e46343e3d70f88e69d924b7b6eda032b338ee1021",
+      "state_root": "a6826a6fd4a78589ec0821c03e2aa6bfb5632dcd2f763a1e0ccad51be9e5dde8",
+      "snapshot_hash": "3a0c28998d17f21cd2898ef3de87ae131e7ca80fa3919e4fbf63d12140d80b28"
     },
     {
       "height": 109,
@@ -434,21 +504,23 @@
           "type": "anchor",
           "parcel": 0,
           "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
-          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci4",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci5",
           "h3_cell": "8c28308280f35ff",
           "committed": true,
           "spends_title_outpoint": true,
           "tx_index": 1,
-          "comment": "cooldown still runs from parcel 0's own last change (104)"
+          "comment": "free cell (parcel 1 left it)"
         }
       ],
       "results": [
-        "cooldown"
+        "ok"
       ],
-      "delta": [],
-      "delta_text_sha256": null,
-      "state_root": "0b5bfc54bd6d8d6bdacb211d5962c5d40f2e0ce79df698429d2757c0401b1e56",
-      "snapshot_hash": "3dab394561ce697654397fa920f3650d538b3112e06eef2b2cd1c19f64a635b6"
+      "delta": [
+        "+C 8c28308280f35ff 0 109 1 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci5"
+      ],
+      "delta_text_sha256": "2cb8451c5425557bb09ff6d544380e567c87f5779f5973da4fec9c1ee36b56de",
+      "state_root": "c8decfbdf91ebf3718979548751d461c10657ade51747e78a205bac7171ee71d",
+      "snapshot_hash": "1ddc3195737d4867702f9a4248fe39e13fdb28177865f6eab42db318aa486973"
     },
     {
       "height": 132,
@@ -457,56 +529,84 @@
       "results": [],
       "delta": [],
       "delta_text_sha256": null,
-      "state_root": "0b5bfc54bd6d8d6bdacb211d5962c5d40f2e0ce79df698429d2757c0401b1e56",
-      "snapshot_hash": "ea7cd8114797762fc6472bab5d2bf121e84a08892609f6670edae630a3422d9f"
+      "state_root": "c8decfbdf91ebf3718979548751d461c10657ade51747e78a205bac7171ee71d",
+      "snapshot_hash": "df0b63b3368ae4e4ac527dc66013416376a336e340b3e1223faa4fd82a5b34b1"
     },
     {
-      "height": 133,
-      "events": [],
-      "comment": "founder key 102 is final at tip 133 (133 > 102 + 30)",
-      "results": [],
-      "delta": [
-        "+D 872830828ffffff 2 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3 1 102 5 1"
+      "height": 140,
+      "events": [
+        {
+          "type": "anchor",
+          "parcel": 101,
+          "title": "6666666666666666666666666666666666666666666666666666666666666666i9",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci6",
+          "h3_cell": "8c28308280f37ff",
+          "committed": true,
+          "spends_title_outpoint": true,
+          "priority": {
+            "height": 1,
+            "tx_index": 0,
+            "vout": 0
+          },
+          "tx_index": 1,
+          "comment": "final occupant (key 102, tip 140 > 132): even a lower key cannot take it"
+        },
+        {
+          "type": "anchor",
+          "parcel": 101,
+          "title": "6666666666666666666666666666666666666666666666666666666666666666i9",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci7",
+          "clear": true,
+          "committed": true,
+          "spends_title_outpoint": true,
+          "tx_index": 2,
+          "comment": "nothing to clear"
+        }
       ],
-      "delta_text_sha256": "5bb941470878f04e3922f1a4763cb6eb1f0ae3ba06bdb4517f2bd60019e74fa6",
-      "state_root": "8937c32ede1a2728c2c8ccd6b3279aa5dc07114d50f66f89612165c7c0d766a8",
-      "snapshot_hash": "2afe13b93cae7f2fbe6a774c4d5eb0e8dc537ded59b0920bd9c4957567a93913"
+      "results": [
+        "cell_taken",
+        "not_anchored"
+      ],
+      "delta": [],
+      "delta_text_sha256": null,
+      "state_root": "c8decfbdf91ebf3718979548751d461c10657ade51747e78a205bac7171ee71d",
+      "snapshot_hash": "e300dcf2f078e10c8813a9e025a7502657592048ad60aa2e0da17e6fcd5040ab"
     },
     {
       "height": 250,
       "events": [
         {
           "type": "anchor",
-          "parcel": 1,
-          "title": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi0",
-          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci5",
+          "parcel": 0,
+          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci8",
           "h3_cell": "8c28308280f35ff",
           "committed": true,
           "spends_title_outpoint": true,
           "tx_index": 1,
-          "comment": "already on this cell: invalid, keeps its key"
+          "comment": "already on this cell: nothing changes"
         },
         {
           "type": "anchor",
           "parcel": 1,
           "title": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi0",
-          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci6",
+          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci9",
           "clear": true,
           "committed": true,
           "spends_title_outpoint": true,
           "tx_index": 2,
-          "comment": "clear; the district keeps its final founder"
+          "comment": "clear releases CELL_B"
         },
         {
           "type": "anchor",
-          "parcel": 0,
-          "title": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0",
-          "id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci7",
+          "parcel": 101,
+          "title": "6666666666666666666666666666666666666666666666666666666666666666i9",
+          "id": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi1",
           "h3_cell": "8cbe0e35c0943ff",
           "committed": true,
           "spends_title_outpoint": true,
           "tx_index": 3,
-          "comment": "no commit in window: key is the reveal position"
+          "comment": "no commit in the window: the key is the reveal position"
         },
         {
           "type": "build",
@@ -520,7 +620,8 @@
             "chapter": 1
           },
           "seal_all": true,
-          "tx_index": 4
+          "tx_index": 4,
+          "comment": "seal_all is not a field (ignored)"
         }
       ],
       "results": [
@@ -530,16 +631,12 @@
         "ok"
       ],
       "delta": [
-        "+B 0 8888888888888888888888888888888888888888888888888888888888888888i0 1 0 3dfbab5e5156cc5ca1a2d2d13718c82d77804693446b1a3e60ed8b82ca53bc12",
-        "+L 0 8cbe0e35c0943ff 250 1",
-        "+L 1 - 250 0",
-        "-C 8c28308280f35ff",
-        "+C 8cbe0e35c0943ff 0 250 3 0 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci7",
-        "+D 87be0e35cffffff 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci7 0 250 3 0"
+        "+B 0 8888888888888888888888888888888888888888888888888888888888888888i0 0 3dfbab5e5156cc5ca1a2d2d13718c82d77804693446b1a3e60ed8b82ca53bc12",
+        "+C 8cbe0e35c0943ff 101 250 3 0 ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi1"
       ],
-      "delta_text_sha256": "e57917172f60aad4a388cfd15e3834fa99e693a44cf69cdd72d395ecce326441",
-      "state_root": "c8d3e03b2334b925c66a8b3ba0d95a21e4334d134f564a0140884d00f611ae54",
-      "snapshot_hash": "d495739378ac909f48b125170a5c2bb3fea16b3a16ac54f2b7cf8da8eb29c27c"
+      "delta_text_sha256": "3ed08596eed3e1f4412ed9aa62bbf73e2d9fa55a9647d3221d2fc7e5af47bb48",
+      "state_root": "78b478b7b08e33ffb17afd25c98cffb33f6a14d50764bdf05ee80cb17b1a969f",
+      "snapshot_hash": "b5cd975be043ea66607796a70a522f334fb0c583295d0dd1051fc30b529bf3d0"
     },
     {
       "height": 251,
@@ -556,7 +653,7 @@
             "chapter": 2
           },
           "tx_index": 1,
-          "comment": "parcel sealed (seal_all)"
+          "comment": "supersede"
         },
         {
           "type": "build",
@@ -577,15 +674,16 @@
         }
       ],
       "results": [
-        "sealed",
+        "ok",
         "ok"
       ],
       "delta": [
-        "+B 1 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 1 0 b38d8d52e5a8384d85d7dd64d3e8739e99dba3167c5c5da863f3b6cb6fee254d"
+        "+B 0 8888888888888888888888888888888888888888888888888888888888888888i0 0 ab334695bacb89d75ca5400a6f9f4f6584159ebbf36d8a8c7e42de6279d8f9b5",
+        "+B 1 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 0 b38d8d52e5a8384d85d7dd64d3e8739e99dba3167c5c5da863f3b6cb6fee254d"
       ],
-      "delta_text_sha256": "02fe49e145aa177225c6fae2e973f466ce56de31ccdddcabcc58ae41de5003cd",
-      "state_root": "6b5b3d172a68a8f64d58823fa9c3dd746f1044e84534097b0091bcedbb6c08dd",
-      "snapshot_hash": "6c1da7111025a40ef58b2ee49f1d8b8ae54fe70f0b77aacad9da5223f6873388"
+      "delta_text_sha256": "56236b0fe2f98055800dd15a447896df6d958f4d23f1b9e36f8a8b7346cc7d1c",
+      "state_root": "38f51fdc4d33b7305a02559ef61cf19985e06e21d272bb3cd0a444d51318dcd0",
+      "snapshot_hash": "978f59957a26f807f80d2b7b6f83071666792dc8d07e7a31eeb8501888b30ec1"
     },
     {
       "height": 252,
@@ -599,20 +697,21 @@
           "committed": true,
           "spends_title_outpoint": true,
           "remove": true,
-          "tx_index": 1
+          "tx_index": 1,
+          "comment": "remove: an unsealed empty slot has no record"
         }
       ],
       "results": [
         "ok"
       ],
       "delta": [
-        "+B 1 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 2 0 none"
+        "-B 1 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0"
       ],
-      "delta_text_sha256": "223afdac36391d9ed75b13e57677797b79c7d89f0df97186925ec10ed9bde6c0",
-      "state_root": "9600db165c892a7beb6d2a2ce32bf73d9c9f856caac83caec1e81bc8c2c41c31",
-      "snapshot_hash": "4a56fddda717f91267f14d5973da2af4d170c51cf50bbec68e15b3b01062d186",
-      "snapshot": "dmaps-checkpoint/2\nnetwork=regtest\nheight=252\nmaps_activation=0\nland_activation=0\nh3=4.2.1\nroot=9600db165c892a7beb6d2a2ce32bf73d9c9f856caac83caec1e81bc8c2c41c31\nT 0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\nT 1 ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi0\nT 2 9999999999999999999999999999999999999999999999999999999999999999i0\nP 8888888888888888888888888888888888888888888888888888888888888888i0 \"lore\" \"1\"\nP bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 \"street-scene\" \"1.0.0\"\nP ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 \"Ð shop \\\"sign\\\"\" \"2.0.0-beta\"\nB 0 8888888888888888888888888888888888888888888888888888888888888888i0 1 0 3dfbab5e5156cc5ca1a2d2d13718c82d77804693446b1a3e60ed8b82ca53bc12\nB 0 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 2 1 d73f9da524d6730b9bf84ccc9f37558499827be14db2c9cfaf21eb37385d87b1\nB 0 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 1 1 4236b286d92e8a1b9da41a67e6512c4b8599a13b55735f0969822f7d1a6534d8\nB 1 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 2 0 none\nL 0 8cbe0e35c0943ff 250 1\nL 1 - 250 0\nL 2 8c28308280f37ff 108 0\nC 8c28308280f37ff 2 102 5 1 1 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3\nC 8cbe0e35c0943ff 0 250 3 0 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci7\nD 872830828ffffff 2 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3 1 102 5 1\nD 87be0e35cffffff 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci7 0 250 3 0\n"
+      "delta_text_sha256": "03132686c5c11b85f4bd126efc3b053c09a8fd9e4c5e74df57cfb85d1a8552c3",
+      "state_root": "e7e474419883cc59b276df927a85d9dd8779f5d751fc97b98b526b59d4bcb876",
+      "snapshot_hash": "8351ee4e209f7f47b0c8f4ab4776cb18b7a34ef06ef35f6d7caf208bc4c92274",
+      "snapshot": "dmaps-checkpoint/3\nnetwork=regtest\nheight=252\nh3=4.2.1\nroot=e7e474419883cc59b276df927a85d9dd8779f5d751fc97b98b526b59d4bcb876\nT 0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\nT 1 ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi0\nT 2 9999999999999999999999999999999999999999999999999999999999999999i0\nT 101 6666666666666666666666666666666666666666666666666666666666666666i9\nP 8888888888888888888888888888888888888888888888888888888888888888i0 \"lore\" \"1\"\nP bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 \"street-scene\" \"1.0.0\"\nP ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 \"Ð shop \\\"sign\\\"\" \"2.0.0-beta\"\nB 0 8888888888888888888888888888888888888888888888888888888888888888i0 0 ab334695bacb89d75ca5400a6f9f4f6584159ebbf36d8a8c7e42de6279d8f9b5\nB 0 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0 1 d73f9da524d6730b9bf84ccc9f37558499827be14db2c9cfaf21eb37385d87b1\nB 0 ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffi0 1 4236b286d92e8a1b9da41a67e6512c4b8599a13b55735f0969822f7d1a6534d8\nC 8c28308280f35ff 0 109 1 0 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci5\nC 8c28308280f37ff 2 102 5 1 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci3\nC 8cbe0e35c0943ff 101 250 3 0 ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddi1\n"
     }
   ],
-  "genesis_root": "274aefa54afb19babd38f49c47ce619e21e179ce6c637ad18b0925aa017a6dd8"
+  "genesis_root": "0107e63fb9dfc6a6a21937faaefceb20b78c612314433991550e6d530f8931d1"
 }

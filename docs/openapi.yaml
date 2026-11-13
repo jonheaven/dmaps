@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Dogex ÐMaps / ÐLand API
-  version: "0.3"
+  version: "0.4"
   description: >-
     Read-only indexer API so a dApp can resolve titles, packs, builds, anchors, cells,
-    districts, regions, holders, and the dmaps-state/2 root. The chain is the authority; this API is a
+    districts, regions, holders, and the dmaps-state/3 root. The chain is the authority; this API is a
     read convenience. Normative behavior is docs/API.md and docs/INDEXING.md. Every error is an
     HTTP status with a plain-text body.
   license:
@@ -72,8 +72,8 @@ components:
         inscription_number: { type: integer }
         claim_height: { type: integer }
         claim_timestamp: { type: integer }
-        lat: { type: number, description: "§7 seed latitude at res 9" }
-        lon: { type: number, description: "§7 seed longitude at res 9" }
+        lat: { type: number, description: "ÐMaps §4 seed latitude at res 9" }
+        lon: { type: number, description: "ÐMaps §4 seed longitude at res 9" }
         body: { type: string, enum: [earth] }
         h3_res: { type: integer, enum: [9] }
         h3_cell: { type: [string, "null"], description: "latLngToCell(lat, lon, 9), H3 4.2.1" }
@@ -103,21 +103,29 @@ components:
         from_commit: { type: boolean }
         anchor_id: { type: string }
         parcel: { type: integer }
-        cooldown_remaining: { type: integer }
+    Founder:
+      type: object
+      description: Derived on read (lowest live key in the district); non-consensus.
+      properties:
+        parcel: { type: integer }
+        anchor_id: { type: string }
+        final: { type: boolean }
+        priority: { $ref: "#/components/schemas/Priority" }
+        derived: { type: boolean, enum: [true] }
     Next:
       type: [string, "null"]
       description: Cursor for the next page (pass as after=); null on the last page.
     StateRoot:
       type: object
       properties:
-        version: { type: string, enum: [dmaps-state/2] }
+        version: { type: string, enum: [dmaps-state/3] }
         height: { type: integer }
         root: { type: string }
         last_change_height: { type: [integer, "null"] }
     StateDelta:
       type: object
       properties:
-        version: { type: string, enum: [dmaps-state/2] }
+        version: { type: string, enum: [dmaps-state/3] }
         height: { type: integer }
         prev_root: { type: string }
         root: { type: string }
@@ -126,8 +134,8 @@ components:
     Checkpoint:
       type: object
       properties:
-        version: { type: string, enum: [dmaps-checkpoint/2] }
-        state_version: { type: string, enum: [dmaps-state/2] }
+        version: { type: string, enum: [dmaps-checkpoint/3] }
+        state_version: { type: string, enum: [dmaps-state/3] }
         height: { type: integer }
         root: { type: string }
         hash: { type: string, description: SHA-256 of checkpoint }
@@ -162,11 +170,9 @@ paths:
                   checkpoint_version: { type: string }
                   state_root: { type: string }
                   state_root_height: { type: [integer, "null"] }
-                  claim_window: { type: integer }
                   maps_h3_res: { type: integer }
                   routes: { type: array, items: { type: string } }
                   window: { type: integer }
-                  reanchor_cooldown: { type: integer }
                   h3: { type: string }
                   h3_res: { type: integer }
                   district_res: { type: integer }
@@ -262,10 +268,7 @@ paths:
                   builds: { type: array, items: { $ref: "#/components/schemas/Build" } }
                   builds_next: { $ref: "#/components/schemas/Next" }
                   anchor: { oneOf: [{ $ref: "#/components/schemas/Anchor" }, { type: "null" }] }
-                  seal_all: { type: boolean }
-                  last_change: { type: [integer, "null"] }
-                  cooldown_remaining: { type: integer }
-                  is_founder: { type: boolean }
+                  is_founder: { type: boolean, description: "Derived on read; non-consensus" }
                   standing: { type: object }
         "404": { $ref: "#/components/responses/NotFound" }
   /api/land/packs:
@@ -320,7 +323,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/land/district/{h3}:
     get:
-      summary: Res-7 district founder, live-cell count and anchored parcels in priority order (paged)
+      summary: Res-7 district live-cell count, derived founder and anchored parcels in priority order (paged)
       parameters:
         - $ref: "#/components/parameters/H3"
         - $ref: "#/components/parameters/After"
@@ -330,12 +333,12 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/land/districts:
     get:
-      summary: Every district with a founder, in key order
+      summary: Every district with a live anchor, by region then district (cursor region|district)
       parameters:
         - $ref: "#/components/parameters/After"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ protocol, h3_res, districts: [{ district, region, founder_parcel, anchor_id, final, priority, cursor }], next }" }
+        "200": { description: "{ protocol, h3_res, districts: [{ district, region, live_cells, founder: Founder|null, cursor }], next }" }
   /api/land/region/{h3}:
     get:
       summary: Res-4 region rollup of districts with live cells (paged)
@@ -348,15 +351,32 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/land/holder/{address}:
     get:
-      summary: Titles, anchored parcels, and builds for a holder
+      summary: Titles a holder has now (block order, paged), anchored cells and builds for the page
       parameters:
         - $ref: "#/components/parameters/Address"
+        - in: query
+          name: after
+          description: Last block number already seen (exclusive).
+          schema: { type: integer, minimum: 0 }
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: "{ address, titles, anchored, builds }" }
+        "200":
+          description: Holder page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address: { type: string }
+                  total: { type: integer }
+                  titles: { type: array, items: { type: integer } }
+                  anchored: { type: array, items: { type: object, properties: { parcel: { type: integer }, h3_cell: { type: string } } } }
+                  builds: { type: array, items: { type: object, properties: { parcel: { type: integer }, pack: { type: string } } } }
+                  next: { type: [string, "null"] }
         "400": { $ref: "#/components/responses/BadRequest" }
   /api/dmaps/state/root:
     get:
-      summary: dmaps-state/2 root at the indexed tip
+      summary: dmaps-state/3 root at the indexed tip
       responses:
         "200":
           description: Root
@@ -389,7 +409,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
   /api/dmaps/checkpoint/latest:
     get:
-      summary: Full dmaps-checkpoint/2 snapshot at the indexed tip, built on demand
+      summary: Full dmaps-checkpoint/3 snapshot at the indexed tip, built on demand
       responses:
         "200":
           description: Checkpoint

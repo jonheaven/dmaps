@@ -1,139 +1,41 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "dogemaps/v1/operation",
-  "title": "ÐMaps (p: Ð:MAPS) operation",
+  "$id": "dogemaps/operation",
+  "title": "ÐMaps JSON claim (p: Ð:MAPS)",
+  "$comment": "Shape of the JSON form only. The text form is the exact body <n>.dogemap (see text_claim). Validity also needs the JSON profile, a text/plain* or application/json* content type, block_height <= confirmation height, and first-inscription-wins (docs/INDEXING.md §2.2, §4). Keys other than p, op and title.block_height are ignored.",
   "type": "object",
   "required": [
     "p",
-    "v",
     "op",
-    "chain"
+    "title"
   ],
   "additionalProperties": true,
   "properties": {
     "p": {
       "const": "Ð:MAPS"
     },
-    "v": {
-      "const": "1"
-    },
     "op": {
-      "enum": [
-        "claim",
-        "upgrade",
-        "link"
-      ]
-    },
-    "chain": {
-      "const": "dogecoin"
+      "const": "claim"
     },
     "title": {
       "type": "object",
       "required": [
-        "block_height",
-        "tier"
+        "block_height"
       ],
       "properties": {
         "block_height": {
           "type": "integer",
           "minimum": 0,
           "maximum": 4294967295
-        },
-        "tier": {
-          "const": "standard"
-        }
-      }
-    },
-    "geo": {
-      "type": "object",
-      "required": [
-        "h3_res",
-        "h3_cell"
-      ],
-      "properties": {
-        "h3_res": {
-          "const": 9
-        },
-        "h3_cell": {
-          "type": "string",
-          "pattern": "^8[0-9a-f]{14}$"
-        }
-      }
-    },
-    "fair": {
-      "type": "object",
-      "properties": {
-        "stake_koinu": {
-          "type": "string",
-          "pattern": "^(0|[1-9][0-9]*)$",
-          "maxLength": 20
-        },
-        "stake_burn": {
-          "const": true
-        }
-      },
-      "required": [
-        "stake_koinu",
-        "stake_burn"
-      ]
-    },
-    "parent": {
-      "type": "object",
-      "properties": {
-        "inscription_id": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}i(0|[1-9][0-9]{0,9})$"
-        },
-        "relation": {
-          "type": "string",
-          "maxLength": 256
-        }
-      }
-    },
-    "of": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}i(0|[1-9][0-9]{0,9})$"
-    },
-    "hrefs": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "rel",
-          "uri"
-        ],
-        "properties": {
-          "rel": {
-            "type": "string"
-          },
-          "uri": {
-            "type": "string",
-            "minLength": 1
-          }
         }
       }
     }
   },
-  "$comment": "Shape only. Validity also needs the JSON profile, the derived h3_cell, the stake floor and the DDMAPBURN burn output (docs/INDEXING.md §2.2, §4).",
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "op": {
-            "const": "claim"
-          }
-        },
-        "required": [
-          "op"
-        ]
-      },
-      "then": {
-        "required": [
-          "title",
-          "geo",
-          "fair"
-        ]
-      }
+  "$defs": {
+    "text_claim": {
+      "$comment": "The text form, as a pattern over the whole body (UTF-8 = ASCII here). At most 10 digits.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,9})\\.dogemap$"
     }
-  ]
+  }
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parcelScore, streakFromHeights, districtStanding, regionStanding, VERSION } from "./standing.mjs";
+import { parcelScore, streakFromHeights, districtStanding, regionStanding, founderOf, VERSION } from "./standing.mjs";
 
 test("founder of a quiet district outscores a bare pin", () => {
   const founder = parcelScore({
@@ -46,4 +46,17 @@ test("district / region sums", () => {
   const d = districtStanding([{ score: 10 }, { score: 15 }], 3);
   assert.equal(d, 10 + 15 + 30);
   assert.equal(regionStanding([d, 20]), d + 20);
+});
+
+test("founder is the lowest live key in the district, recomputed from cells", () => {
+  const k = (height, tx_index, vout) => ({ height, tx_index, vout });
+  const cells = {
+    "8c28308280f37ff": { h3_cell: "8c28308280f37ff", parcel: 2, key: k(102, 5, 1), anchor_id: "x" },
+    "8c28308280f35ff": { h3_cell: "8c28308280f35ff", parcel: 0, key: k(108, 1, 0), anchor_id: "y" },
+  };
+  assert.deepEqual(founderOf(cells, "872830828ffffff", 120), { parcel: 2, anchor_id: "x", key: k(102, 5, 1), final: false });
+  assert.equal(founderOf(cells, "872830828ffffff", 133).final, true);
+  assert.equal(founderOf(cells, "8428309ffffffff", 133), null);
+  delete cells["8c28308280f37ff"];
+  assert.equal(founderOf(cells, "872830828ffffff", 133).parcel, 0);
 });

@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.3.0 — 2026-11-12
+
+Design pass: ÐMaps 0.3, ÐLand 0.3, INDEXING 0.3.0, `dmaps-state/3`. The question was what the simplest protocol is that still keeps the one hard guarantee — **only the current holder, spending the title UTXO in the same transaction, can change a parcel** — and still recognizes every existing `<n>.dogemap` parcel. The answer is in the README's [Design principles](README.md#design-principles). Every change below is one of three things: an existing convention adopted, a knob removed, or a stored fact turned into a view.
+
+### Decisions
+
+| Item | Decision | Why |
+| --- | --- | --- |
+| `<n>.dogemap` text titles | **Changed** — now titles (exact bytes, `text/plain*` / `application/json*`, `n` ≤ height), sharing one first-wins slot with JSON claims | Existing parcels already work this way on chain and in existing dogemap indexes; a standard should build on them, not orphan them |
+| JSON claim shape | **Changed** — only `p`, `op:"claim"`, `title.block_height` are read; `v`, `chain`, `tier`, `geo`, `fair` ignored | The cell is derived, so a supplied one can only be wrong; the other fields split nothing |
+| Stake floor, `DDMAPBURN` burn, 2016-block claim window | **Removed** | A fee with a tunable curve over a moving window: consensus surface, makes validity depend on neighbours' activity, and existing dogemaps never paid it. The inscription is the cost |
+| `params` op | **Removed** (stays removed) | A parameter feed is an admin key |
+| `i0` / single-transaction rule for claims | **Removed** | Inscription order is already total; existing text titles were never `i0`-only. The strict carrier stays only where it protects someone (ÐLand parcel changes) |
+| Title conflict rule | **Kept** — first inscription wins (not commit-first) | Keeps every existing parcel and the existing dogemap index's answer. Cells (scarce, chosen, mempool-visible) use commit-first |
+| `upgrade` / `link` ops | **Removed** | No state, no authorization; holder-gated building is ÐLand `build` |
+| Visual renderer, collector scoring | **Moved** to `docs/extensions/` | Optional, non-consensus; the core now fits on one page |
+| Protocol versions (`v`) | **Removed** — `v` is not read in ÐMaps or ÐLand | No versions or activation splits inside the protocol |
+| Activation heights | **Removed** from the protocol and the genesis root | Rules apply from block 0; an indexer's start height is an operator choice, not a rule |
+| Re-anchor cooldown (144) | **Removed** | Commit-first is the only cell rule; every move already costs a title-spending transaction and cannot touch a final occupant |
+| `seal_all` | **Removed** (ignored as an unknown key) | One `seal` per slot does the same; the parcel-wide flag was a second state machine |
+| Per-slot `seal`, `remove` | **Kept** | The holder's own lock and undo |
+| District Founder | **Changed** — derived on read (lowest live key in the district; `final` = key final at tip); no `D` records, no end-of-block settlement | A badge no rule reads should not be consensus state |
+| Land Standing | **Kept non-consensus**, bumped to `land-standing/2` | Same formula; `is_founder` now reads the derived Founder |
+| Packs | **Kept** — any inscription, multi-transaction allowed, written once | The pack id is the inscription id: nothing scarce to race |
+| Build/anchor carrier | **Kept** — vin[0] content-bound `ord` envelope, `i0`, and the title spent at the start of the transaction | This is the hard guarantee |
+| Commit-first for cells (W = 30) | **Kept** | Same rule as ÐNS; the only cell conflict rule |
+| Chained state root | **Kept** as an audit commitment; no rule reads it | Cheap equality check between indexers; never a prerequisite for validity |
+| State records | **Changed** — `T/P/B/C` only; `L` and `D` removed; `B` drops `applied`; `C` drops `from_commit` | A parcel's cell is the `C` record that names it; counters and provenance flags are informative |
+| Holder endpoint | **Changed** — `GET /api/land/holder/{address}` is cursor-paged (`after` = block number, `limit`, `next`, `total`); `anchored` rows are `{parcel, h3_cell}` | The 500-title cap is gone |
+| District list | **Changed** — `GET /api/land/districts` lists every district with a live anchor (cursor `region|district`) with `live_cells` and the derived `founder` | Founders are no longer stored |
+
+### Compatibility and reindex
+
+- `dmaps-state/3` and `dmaps-checkpoint/3` replace `/2`. Every root changes, including the genesis root (`SHA-256("dmaps-state/3\nnetwork=<net>\nh3=4.2.1\n")`). An index built under 0.2 must be rebuilt from genesis.
+- Any 0.2-style JSON claim is still a claim (its extra fields are ignored). A 0.2 claim that would have failed on stake, burn, cell or `i0` may now be the title; a `.dogemap` text inscription earlier in order now wins over a later JSON claim.
+- API: removed `seal_all`, `last_change`, `cooldown_remaining` (parcel and cell), `reanchor_cooldown` and `claim_window` (status), `founder_parcel` (districts), the `stake_floor`/`burn_output` capability flags. Added `founder.derived`, holder `next`/`total`. See [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml) 0.4.
+
+### Conformance
+
+- `reference/dmaps-claim.mjs` is a two-form parser (`parseClaim(body, content_type, height)`). `reference/apply.mjs` has no end-of-block step. `protocols/dland/standing.mjs` adds `founderOf`.
+- Vectors regenerated: claim cases `CLAIM-001…033` (text and JSON, media types, exact-bytes failures), ÐLand parse cases without `v`, `seal_all` ignored, and a block log with text and JSON titles, duplicates across forms, commit-first displacement, final-occupant rejection, and a cell released and reused in one block.
+
 ## 0.2.0 — 2026-11-12
 
 Protocol revision. ÐMaps 0.2, ÐLand 0.2, INDEXING 0.2.0. Activation heights are still `null` on mainnet and testnet, so nothing that was live changes; any local index built with an override must be rebuilt from genesis.

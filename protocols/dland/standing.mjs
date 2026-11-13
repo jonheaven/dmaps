@@ -1,6 +1,22 @@
-/** Land Standing/1 — non-consensus, deterministic. See spec.md §11. */
+/** Land Standing/2 — non-consensus, deterministic. See spec.md §10–§11. */
+import { districtOf, priorityCmp, isFinal } from "./codec.mjs";
 
-export const VERSION = "land-standing/1";
+export const VERSION = "land-standing/2";
+
+/**
+ * District Founder (§10.1): the live pin in the district with the lowest priority key, read
+ * from the current cells. Not a record and not a privilege: a label anyone recomputes.
+ * `final` is whether that pin can still be displaced (commit-first finality).
+ */
+export function founderOf(cells, district, tip) {
+  let low = null;
+  for (const c of Object.values(cells)) {
+    if (districtOf(c.h3_cell) !== district) continue;
+    if (!low || priorityCmp(c.key, low.key) < 0) low = c;
+  }
+  if (!low) return null;
+  return { parcel: low.parcel, anchor_id: low.anchor_id, key: low.key, final: isFinal(low.key.height, tip) };
+}
 
 export function parcelScore(input) {
   const live_packs = Number(input.live_packs) || 0;

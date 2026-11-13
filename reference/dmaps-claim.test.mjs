@@ -3,36 +3,39 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { validateClaim, stakeFloor, dogemapsCell, burnScriptHex, parseBurnScript } from "./dmaps-claim.mjs";
+import { parseClaim, dogemapsCell, mediaTypeOk } from "./dmaps-claim.mjs";
 import { OFFICIAL_CELLS } from "./dmaps-geo.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const conf = JSON.parse(readFileSync(join(here, "../protocols/dogemaps/vectors/conformance.json"), "utf8"));
 
 test("claim vectors", () => {
-  assert.ok(conf.claims.length >= 25);
+  assert.ok(conf.claims.length >= 30);
   for (const c of conf.claims) {
-    const r = validateClaim(c.body, c.tx, c.height, c.g);
+    const r = parseClaim(c.body, c.content_type, c.height);
     assert.equal(r.ok ? "pass" : "fail", c.expect, `${c.id}: ${c.description} (${r.why})`);
     if (c.expect === "fail") assert.equal(r.why, c.why, c.id);
+    else {
+      assert.equal(r.block_height, c.block_height, c.id);
+      assert.equal(r.form, c.form, c.id);
+    }
   }
 });
 
-test("stake floor", () => {
-  assert.equal(stakeFloor(0), 10000000n);
-  assert.equal(stakeFloor(5000), 360000000n);
-  assert.equal(stakeFloor(1e9), 360000000n);
-  for (const f of conf.floors) assert.equal(stakeFloor(f.g).toString(), f.floor_koinu);
+test("both spellings name the same title", () => {
+  const a = parseClaim("42.dogemap", "text/plain", 42);
+  const b = parseClaim(JSON.stringify({ p: "Ð:MAPS", op: "claim", title: { block_height: 42 } }), "application/json", 42);
+  assert.equal(a.block_height, 42);
+  assert.equal(b.block_height, 42);
+  assert.equal(parseClaim(new TextEncoder().encode("42.dogemap"), "text/plain", 41).why, "time_travel");
 });
 
-test("burn script round trip", () => {
-  const s = burnScriptHex(123456789n);
-  assert.equal(s.length, 38);
-  assert.equal(parseBurnScript(s), 123456789n);
-  assert.equal(parseBurnScript("6a4c11" + s.slice(4)), null);
-  assert.equal(parseBurnScript(s.slice(0, 36)), null);
-  assert.equal(parseBurnScript(s.toUpperCase()), 123456789n);
-  assert.equal(parseBurnScript(s.slice(0, 36) + "zz"), null);
+test("media types", () => {
+  assert.equal(mediaTypeOk("text/plain"), true);
+  assert.equal(mediaTypeOk("text/plain;charset=utf-8"), true);
+  assert.equal(mediaTypeOk("application/json"), true);
+  assert.equal(mediaTypeOk("text/html"), false);
+  assert.equal(mediaTypeOk(null), false);
 });
 
 test("derived cells (h3-js 4.2.1)", () => {

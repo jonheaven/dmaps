@@ -1,23 +1,18 @@
 /**
  * Reference ÐMaps + ÐLand state machine over an abstract block log (vectors/indexer-state.json).
- * Each event is a confirmed inscription that already passed parsing; the event carries the
- * chain facts an indexer reads from the transaction (committed, title spend, priority key).
- * Normative text: docs/INDEXING.md §4–§7.
+ * A claim event carries the inscription's body and content type and is parsed here; a ÐLand
+ * event already passed parsing and carries the chain facts an indexer reads from the
+ * transaction (committed, title spend, priority key). Normative text: docs/INDEXING.md §4–§7.
+ *
+ * There is no end-of-block step: every rule is decided by the op that triggers it.
  */
-import {
-  districtOf,
-  canTakeCell,
-  cooldownOk,
-  isFinal,
-  priorityCmp,
-  authorize,
-  WINDOW,
-  REANCHOR_COOLDOWN,
-} from "../protocols/dland/codec.mjs";
+import { canTakeCell, authorize, WINDOW } from "../protocols/dland/codec.mjs";
+import { parseClaim } from "./dmaps-claim.mjs";
 import { recordLines, delta, nextRoot, genesisRoot } from "./state.mjs";
 
+/** `pins` (parcel -> cell) is an index, not a record: it is the inverse of `cells`. */
 export function emptyState() {
-  return { titles: {}, packs: {}, builds: {}, live: {}, cells: {}, districts: {} };
+  return { titles: {}, packs: {}, builds: {}, cells: {}, pins: {} };
 }
 
 /**
@@ -31,10 +26,7 @@ export function applyLog(blocks, meta, start = emptyState()) {
   for (const block of blocks) {
     const before = recordLines(state);
     const results = [];
-    for (const ev of block.events) {
-      results.push(applyEvent(state, ev, block.height));
-    }
-    endBlock(state, block.height);
+    for (const ev of block.events) results.push(applyEvent(state, ev, block.height));
     const entries = delta(before, recordLines(state));
     root = nextRoot(root, block.height, entries);
     out.push({ height: block.height, state: structuredClone(state), entries, root, results });
@@ -45,13 +37,15 @@ export function applyLog(blocks, meta, start = emptyState()) {
 export function applyEvent(state, ev, height) {
   switch (ev.type) {
     case "maps_claim": {
-      if (ev.invalid) return { ignored: "invalid_claim" };
-      if (state.titles[ev.block_height] !== undefined) return { ignored: "duplicate" };
-      state.titles[ev.block_height] = ev.id;
+      const c = parseClaim(ev.body, ev.content_type ?? null, height);
+      if (!c.ok) return { ignored: c.why };
+      if (state.titles[c.block_height] !== undefined) return { ignored: "duplicate" };
+      state.titles[c.block_height] = ev.id;
       return { ok: true };
     }
     case "pack":
-      state.packs[ev.id] = { id: ev.id, name: ev.name, version: ev.version, height };
+      // A pack id is an inscription id, so it is written once.
+      if (!state.packs[ev.id]) state.packs[ev.id] = { id: ev.id, name: ev.name, version: ev.version, height };
       return { ok: true };
     case "transfer":
       // Moving the title UTXO changes who can spend it, not any protocol state.
@@ -78,86 +72,52 @@ export function applyEvent(state, ev, height) {
 }
 
 const slotKey = (parcel, pack) => `${parcel}|${pack}`;
-const liveOf = (state, parcel) => state.live[parcel] ?? { cell: null, last_change: null, seal_all: false };
 
 function applyBuild(state, ev, height) {
   if (!state.packs[ev.pack]) return { ignored: "no_pack" };
   const k = slotKey(ev.parcel, ev.pack);
   const slot = state.builds[k] ?? { parcel: ev.parcel, pack: ev.pack, content: null, sealed: false, applied: 0 };
   if (slot.sealed) return { ignored: "sealed" };
-  const live = liveOf(state, ev.parcel);
-  if (live.seal_all) return { ignored: "sealed" };
   if (ev.remove) slot.content = null;
-  else if (ev.content !== undefined) slot.content = ev.content; // omitted content (seal only) keeps live content
+  else if (ev.content !== undefined) slot.content = ev.content; // seal without content keeps live content
   if (ev.seal) slot.sealed = true;
-  if (ev.seal_all) state.live[ev.parcel] = { ...live, seal_all: true };
-  slot.applied += 1;
+  slot.applied += 1; // informative (standing), not part of the record line
   slot.last_height = height;
   slot.last_build = ev.id;
   state.builds[k] = slot;
   return { ok: true };
 }
 
+function release(state, parcel) {
+  const cell = state.pins[parcel];
+  if (cell) {
+    delete state.cells[cell];
+    delete state.pins[parcel];
+  }
+}
+
 function applyAnchor(state, ev, height) {
-  const live = liveOf(state, ev.parcel);
-  if (!cooldownOk(live.last_change, height)) return { ignored: "cooldown" };
+  const mine = state.pins[ev.parcel] ?? null;
   if (ev.clear) {
-    if (!live.cell) return { ignored: "not_anchored" };
-    delete state.cells[live.cell];
-    state.live[ev.parcel] = { ...live, cell: null, last_change: height };
+    if (!mine) return { ignored: "not_anchored" };
+    release(state, ev.parcel);
     return { ok: true };
   }
   const cell = ev.h3_cell;
-  if (live.cell === cell) return { ignored: "already_anchored" };
+  if (mine === cell) return { ignored: "already_anchored" };
   const key = ev.priority ?? { height, tx_index: ev.tx_index ?? 0, vout: 0 };
   const occupant = state.cells[cell];
   let displaced = null;
   if (occupant) {
     if (!canTakeCell(occupant, { key }, height)) return { ignored: "cell_taken" };
-    // A strictly earlier commit displaces a pending occupant; the loser is unanchored.
+    // Commit-first: a strictly earlier commit displaces a pending occupant, which is unpinned.
     displaced = occupant.parcel;
-    state.live[displaced] = { ...liveOf(state, displaced), cell: null };
+    release(state, displaced);
   }
-  if (live.cell) delete state.cells[live.cell];
-  state.cells[cell] = {
-    h3_cell: cell,
-    parcel: ev.parcel,
-    key,
-    from_commit: ev.from_commit === true,
-    anchor_id: ev.id,
-  };
-  state.live[ev.parcel] = { ...live, cell, last_change: height };
+  release(state, ev.parcel);
+  state.cells[cell] = { h3_cell: cell, parcel: ev.parcel, key, anchor_id: ev.id };
+  state.pins[ev.parcel] = cell;
   return displaced === null ? { ok: true } : { ok: true, displaced };
 }
 
-/**
- * End of block `tip`: for every district whose founder is not final, the founder is the live
- * occupant with the lowest priority key (none if the district is empty). It becomes final,
- * and permanent, once that key is final at `tip`.
- */
-export function endBlock(state, tip) {
-  const byDistrict = {};
-  for (const c of Object.values(state.cells)) {
-    const d = districtOf(c.h3_cell);
-    if (!byDistrict[d] || priorityCmp(c.key, byDistrict[d].key) < 0) byDistrict[d] = c;
-  }
-  const names = new Set([...Object.keys(byDistrict), ...Object.keys(state.districts)]);
-  for (const d of names) {
-    const cur = state.districts[d];
-    if (cur && cur.final_) continue;
-    const low = byDistrict[d];
-    if (!low) {
-      delete state.districts[d];
-      continue;
-    }
-    state.districts[d] = {
-      district: d,
-      founder_parcel: low.parcel,
-      anchor_id: low.anchor_id,
-      key: low.key,
-      final_: isFinal(low.key.height, tip),
-    };
-  }
-}
-
-export { WINDOW, REANCHOR_COOLDOWN };
+export { WINDOW };

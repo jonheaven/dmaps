@@ -15,10 +15,8 @@ import {
   H3_REGION_RES,
   authorize,
   canTakeCell,
-  cooldownOk,
   isFinal,
   WINDOW,
-  REANCHOR_COOLDOWN,
 } from "./codec.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -85,8 +83,11 @@ test("commit-first cell vectors (T6/T7)", () => {
   assert.equal(isFinal(10, 10 + WINDOW + 1), true);
 });
 
-test("cooldown", () => {
-  assert.equal(cooldownOk(null, 0), true);
-  assert.equal(cooldownOk(10, 10 + REANCHOR_COOLDOWN - 1), false);
-  assert.equal(cooldownOk(10, 10 + REANCHOR_COOLDOWN), true);
+test("no versions and no cooldown: v is not read, seal_all is not a field", () => {
+  const T = "a".repeat(64) + "i0";
+  assert.equal(parse(JSON.stringify({ p: "Ð:LAND", op: "pack", name: "x", version: "1", schema: {} })).ok, true);
+  assert.equal(parse(JSON.stringify({ p: "Ð:LAND", v: 9, op: "pack", name: "x", version: "1", schema: {} })).ok, true);
+  const r = parse(JSON.stringify({ p: "Ð:LAND", op: "build", parcel: 1, title: T, pack: T, seal_all: true }));
+  assert.equal(r.ok, false);
+  assert.equal(r.why, "content");
 });

@@ -4,27 +4,49 @@
 
 ---
 
+## Design principles
+
+ÐMaps and ÐLand are meant to be explained on one page and checked by anyone. Every rule below is a pure function of the Dogecoin chain.
+
+**1. Holding the inscription is owning the parcel.** A title is an inscription. Whoever holds it owns that block's parcel; selling it sells everything built on it. There is no registry, admin key, signature scheme or company in between.
+
+**2. First valid inscription wins.** Block `n`'s title is the first inscription whose whole body is `<n>.dogemap` (or the JSON claim `{"p":"Ð:MAPS","op":"claim","title":{"block_height":n}}`). The `.dogemap` parcels already on chain are titles under this rule; nothing is migrated or re-claimed. Later claims for the same block are duplicates and do nothing.
+
+**3. Only the holder can change a parcel.** A ÐLand `build` or `anchor` counts only if the same transaction spends the title UTXO, in a content-bound reveal. A signature is never enough. This is the one guarantee everything else serves.
+
+**4. One conflict rule for scarce cells.** A real-world H3 cell has one occupant. The earliest commit wins while the occupant is pending (30 blocks), then the pin is final. This is the same commit-first rule as ÐNS, from block one.
+
+**5. No fees, stakes, burns or knobs.** The inscription is the cost. There are no parameters to tune, no claim windows, no cooldowns, no `params` op, no activation heights and no versions inside the protocol. A rule that could be retuned would be a rule someone controls.
+
+**6. The indexer is just a reader.** State is four record types — titles, packs, build slots, occupied cells (`T/P/B/C`). Any two indexers that read the same blocks reach the same records and the same `dmaps-state/3` root. The root is an audit commitment; no rule depends on it. APIs, including Dogex's, are conveniences, not authorities.
+
+**7. Badges are views, not rules.** The district Founder (the earliest live pin in a district) and Land Standing are read off the cells. They grant nothing and are not consensus state.
+
+**8. Obviously correct over clever.** Exact text, strict JSON, integer arithmetic, one total order (block, transaction, inscription). If a rule needs a paragraph of edge cases, it is cut. The [changelog](changelog.md) records each cut and why.
+
+---
+
 ## Start here
 
-Real-world land claims (**anchors**) are **fully on-chain**. Each pin is a Dogecoin inscription whose reveal spends the current ÐMaps parcel **title UTXO**. There is no centralized database, registrar, or application server that grants or stores the claim. Any conformant indexer recomputes **identical** protocol state from the chain and [docs/INDEXING.md](docs/INDEXING.md) alone, and MUST agree on the `dmaps-state/2` root after every block. The [Dogex HTTP API](docs/API.md) is a **read convenience** over that recomputed index — it is not an authority.
+Real-world land claims (**anchors**) are **fully on-chain**. Each pin is a Dogecoin inscription whose reveal spends the current ÐMaps parcel **title UTXO**. There is no centralized database, registrar, or application server that grants or stores the claim. Any conformant indexer recomputes **identical** protocol state from the chain and [docs/INDEXING.md](docs/INDEXING.md) alone, and MUST agree on the `dmaps-state/3` root after every block. The [Dogex HTTP API](docs/API.md) is a **read convenience** over that recomputed index — it is not an authority.
 
-**End-to-end on-chain flow.** The holder of a v1 title (the inscription that first validly claimed a `block_height`) chooses a resolution-12 H3 cell and broadcasts a single-transaction *committed* inscription with a ÐLand `op: "anchor"` body that names that parcel, the title id, and the cell. The same transaction spends the title's current satpoint. Once the transaction is in a block, every indexer applies the same validity and commit-first rules; the cell is occupied (or the op is ignored if unauthorized, on cooldown, or beaten to the cell). A later reader can verify the pin by scanning the chain, or by asking any indexer and, if they want a second opinion, comparing state roots. Disagreement is settled by the chain and this spec, not by a particular API host.
+**End-to-end on-chain flow.** The holder of a title (the first `<n>.dogemap` or JSON claim inscription for a `block_height`) chooses a resolution-12 H3 cell and broadcasts a single-transaction *committed* inscription with a ÐLand `op: "anchor"` body that names that parcel, the title id, and the cell. The same transaction spends the title's current satpoint. Once the transaction is in a block, every indexer applies the same validity and commit-first rules; the cell is occupied (or the op is ignored if unauthorized or beaten to the cell). A later reader can verify the pin by scanning the chain, or by asking any indexer and, if they want a second opinion, comparing state roots. Disagreement is settled by the chain and this spec, not by a particular API host.
 
 ### What is stable now vs what is waiting
 
 | Feature | Status | Implement today? |
 | --- | --- | --- |
-| ÐMaps titles (`op: "claim"`), FCFS per `block_height` | **Frozen rules** in [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md). Schemas and official cells match §6.1 / §7.5 | **Yes** |
+| ÐMaps titles: `<n>.dogemap` text or JSON claim, first inscription wins | **Frozen rules** in [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md) §1–§3. Official cells §4.5 | **Yes** |
 | Derived H3 overlay (res 9), Uber H3 **4.2.1** | **Frozen.** Official cells: `(0,9)=89e98d184b7ffff`, `(1,9)=8901a2b054fffff`, `(12345,8)=88f166ced3fffff` | **Yes** |
 | ÐLand packs, holder-gated builds, res-12 anchors, districts/regions | **Launch Draft, complete.** [protocols/dland/spec.md](protocols/dland/spec.md) has the threat model, auth, and ops. Worked state in [vectors/indexer-state.json](vectors/indexer-state.json) | **Yes** — treat `"p": "Ð:LAND"` as load-bearing |
 | Holder authorization (spend current title UTXO + committed reveal) | **Frozen** | **Yes.** Signature-only auth is invalid |
-| Deterministic indexing, strict JSON profile, reorgs, `dmaps-state/2` root | **Normative** [docs/INDEXING.md](docs/INDEXING.md) (0.2.0). Independent indexers MUST match the root after every block | **Yes** (`npm test`) |
-| Dogex HTTP API (claims, parcels, packs, builds, anchors, cells, districts, holders, state roots) | **Documented** in [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml). Read convenience over a recomputed index, **not authority** | **Yes.** On mainnet the index is empty until a height is announced |
-| Mainnet / testnet activation height | **Not announced** (`null` in INDEXING.md). Regtest = `0` | Indexers MUST stay idle on mainnet until a dated revision names a height. Use regtest or a local override for development only |
-| Land Standing/1, neighbor `gridDisk` counts, district-majority skins | **Non-consensus / advisory.** Not in the state root | Optional. If you cannot compute neighbors, set `neighbors_indexed: false` |
+| Deterministic indexing, strict JSON profile, reorgs, `dmaps-state/3` root | **Normative** [docs/INDEXING.md](docs/INDEXING.md) (0.3.0). Independent indexers MUST match the root after every block | **Yes** (`npm test`) |
+| Dogex HTTP API (claims, parcels, packs, builds, anchors, cells, districts, holders, state roots) | **Documented** in [docs/API.md](docs/API.md) and [docs/openapi.yaml](docs/openapi.yaml). Read convenience over a recomputed index, **not authority** | **Yes.** Dogex keeps mainnet off by default (operator switch) |
+| Activation heights | **None in the protocol.** The rules apply from block 0 on every network. Dogex's `DOGEX_*_ACTIVATION_HEIGHT` is an operator switch (off on mainnet by default) | Index from genesis for canonical roots |
+| District Founder, Land Standing/2, neighbor `gridDisk` counts, district-majority skins | **Non-consensus / derived.** Not in the state root | Optional. If you cannot compute neighbors, set `neighbors_indexed: false` |
 | Protocol display name “ÐLand” | Cosmetic. A rename would be a **dated revision with a new marker**, not a silent change | Do not invent a second marker. Emit `"p": "Ð:LAND"` |
 
-**Launch Draft** means the rules here are the ones a conformant indexer and dApp must follow, with tests you can run in this repo. It is not a sketch and not a reason to wait. The one thing still reserved is the **mainnet activation height**. Breaking changes, if any, will appear as a dated changelog revision — not a silent rewrite.
+**Launch Draft** means the rules here are the ones a conformant indexer and dApp must follow, with tests you can run in this repo. It is not a sketch and not a reason to wait. Breaking changes, if any, will appear as a dated changelog revision — not a silent rewrite.
 
 ### Minimal dApp path
 
@@ -38,18 +60,17 @@ GET /api/land/status
 GET /api/doginals/r/dogemap/block/{block}
 GET /api/land/parcel/{block}
 GET /api/land/cell/{h3}
-GET /api/land/holder/{address}
+GET /api/land/holder/{address}?after=&limit=
 GET /api/dmaps/state/root
 ```
 
-Until `MAPS_ACTIVATION_HEIGHT` / `LAND_ACTIVATION_HEIGHT` are announced, mainnet responses are empty (activation disabled). On **regtest** they are live from height 0. Read `maps_live` / `land_live` from `GET /api/land/status` rather than hard-coding a height.
+A given Dogex host may have ÐMaps/ÐLand switched off (Dogex defaults to off on mainnet); read `maps_live` / `land_live` from `GET /api/land/status` before treating an empty answer as final.
 
 **2. Write an anchor** (current title holder only). The inscription body is the JSON in [protocols/dland/examples/anchor-valid.json](protocols/dland/examples/anchor-valid.json):
 
 ```json
 {
   "p": "Ð:LAND",
-  "v": "1",
   "op": "anchor",
   "parcel": 6197585,
   "title": "<current title inscription id>",
@@ -61,10 +82,10 @@ Until `MAPS_ACTIVATION_HEIGHT` / `LAND_ACTIVATION_HEIGHT` are announced, mainnet
 The reveal transaction MUST:
 
 1. Be the **first inscription (`i0`) of a single-transaction committed (content-binding) `ord` reveal** — [docs/committed-envelope.md](docs/committed-envelope.md).
-2. **Spend the title**: the ÐMaps v1 title must be in the inscriptions carried by the transaction's inputs at the start of that transaction. A leftover signature after a transfer is not authorization.
-3. Use a valid res-12 H3 cell the holder chose (lowercase, `isValidCell`). One live parcel per cell; commit-first (`W = 30`); re-anchor cooldown 144 blocks. An anchor is **not legal property**.
+2. **Spend the title**: the ÐMaps title must be in the inscriptions carried by the transaction's inputs at the start of that transaction. A leftover signature after a transfer is not authorization.
+3. Use a valid res-12 H3 cell the holder chose (lowercase, `isValidCell`). One live parcel per cell; commit-first (`W = 30`) is the only rule. An anchor is **not legal property**.
 
-Builds use the same authorization, with [protocols/dland/examples/build-valid.json](protocols/dland/examples/build-valid.json), after a `pack` inscription exists. New titles use [protocols/dogemaps/examples/claim-valid.json](protocols/dogemaps/examples/claim-valid.json) (official cell `89e98d184b7ffff` for height 0, res 9).
+Builds use the same authorization, with [protocols/dland/examples/build-valid.json](protocols/dland/examples/build-valid.json), after a `pack` inscription exists. A new title is just an inscription of the text `<n>.dogemap` (content type `text/plain`), or the JSON in [protocols/dogemaps/examples/claim-valid.json](protocols/dogemaps/examples/claim-valid.json). Height 0's derived cell is `89e98d184b7ffff` (res 9).
 
 **3. Confirm** on-chain (the inscription and the title spend are in a block) or, as a convenience, via `GET /api/land/parcel/{block}` and `GET /api/land/cell/{h3}`. Independent indexers can be checked against each other with `GET /api/dmaps/state/root/{height}` — the root is a SHA-256 chain over the record changes derived from the chain, not a value issued by Dogex.
 
@@ -95,8 +116,9 @@ A third-party indexer that follows [docs/INDEXING.md](docs/INDEXING.md) MUST pro
 
 | | |
 | ---: | --- |
-| **ÐMaps** | v0.2, [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md) |
-| **ÐLand** | v0.2 Launch Draft, [protocols/dland/spec.md](protocols/dland/spec.md) |
+| **ÐMaps** | v0.3, [protocols/dogemaps/spec.md](protocols/dogemaps/spec.md) |
+| **ÐLand** | v0.3 Launch Draft, [protocols/dland/spec.md](protocols/dland/spec.md) |
+| **Optional extensions** | [visual renderer](docs/extensions/visual-renderer.md), [collector scoring](docs/extensions/collector-scoring.md) (non-consensus) |
 | **Indexing** | [docs/INDEXING.md](docs/INDEXING.md) |
 | **Conformance** | [CONFORMANCE.md](CONFORMANCE.md), [vectors/indexer-state.json](vectors/indexer-state.json) |
 | **HTTP API** | [docs/API.md](docs/API.md), [docs/openapi.yaml](docs/openapi.yaml) |
@@ -114,7 +136,7 @@ If you ship this in a wallet, metaverse, or indexer, emit exactly `"p": "Ð:MAPS
 
 ## Relationship (superset, no broken claims)
 
-Bitcoin Bitmaps (and OG `{n}.dogemap` labels) associate a block number with a title-like inscription. ÐMaps keeps that idea as the **base claim**, with stricter indexer rules and a derived H3 overlay. Bitmaps do not specify holder-gated builds, typed expansion packs, or a unique chosen real-world pin. ÐLand adds those **without changing who won a ÐMaps title**. A holder who does nothing still has a valid parcel.
+Bitcoin Bitmaps (and `<n>.dogemap` on Dogecoin) associate a block number with a title-like inscription. ÐMaps *is* that claim — existing `.dogemap` titles count — with exact indexer rules and a derived H3 overlay. Bitmaps do not specify holder-gated builds, typed expansion packs, or a unique chosen real-world pin. ÐLand adds those **without changing who won a ÐMaps title**. A holder who does nothing still has a valid parcel.
 
 ÐGPS (presence / findable places) and ÐMP (marketplace) are separate public specs. An anchor MAY reference a ÐGPS `place`. Trading uses ÐMP against the **title** inscription; LAND state follows it automatically.
 

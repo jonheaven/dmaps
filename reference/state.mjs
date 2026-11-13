@@ -1,11 +1,11 @@
 /**
- * dmaps-state/2 (docs/INDEXING.md §8): record lines, per-block delta, chained state root,
- * and the dmaps-checkpoint/2 snapshot text.
+ * dmaps-state/3 (docs/INDEXING.md §8): record lines, per-block delta, chained state root,
+ * and the dmaps-checkpoint/3 snapshot text.
  */
 import { createHash } from "node:crypto";
 
-export const STATE_VERSION = "dmaps-state/2";
-export const CHECKPOINT_VERSION = "dmaps-checkpoint/2";
+export const STATE_VERSION = "dmaps-state/3";
+export const CHECKPOINT_VERSION = "dmaps-checkpoint/3";
 export const H3_VERSION = "4.2.1";
 
 const sha256hex = (s) => createHash("sha256").update(s, "utf8").digest("hex");
@@ -35,12 +35,13 @@ export function contentHash(content) {
   return sha256hex(jcs(content));
 }
 
-const SECTION = { T: 0, P: 1, B: 2, L: 3, C: 4, D: 5 };
+const SECTION = { T: 0, P: 1, B: 2, C: 3 };
 const cmpStr = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Every consensus record as a Map from record key to its line. The key is the line's
- * leading fields: `T <h>`, `P <id>`, `B <parcel> <pack>`, `L <parcel>`, `C <cell>`, `D <district>`.
+ * leading fields: `T <h>`, `P <id>`, `B <parcel> <pack>`, `C <cell>`. That is the whole
+ * state: titles, packs, live build slots, and occupied cells.
  */
 export function recordLines(state) {
   const m = new Map();
@@ -49,29 +50,16 @@ export function recordLines(state) {
     m.set(`P ${p.id}`, `P ${p.id} ${JSON.stringify(p.name)} ${JSON.stringify(p.version)}`);
   }
   for (const b of Object.values(state.builds)) {
-    if ((b.applied || 0) === 0 && !b.sealed) continue;
-    m.set(`B ${b.parcel} ${b.pack}`, `B ${b.parcel} ${b.pack} ${b.applied || 0} ${b.sealed ? 1 : 0} ${contentHash(b.content)}`);
-  }
-  for (const [parcel, l] of Object.entries(state.live)) {
-    if (!l.cell && l.last_change == null && !l.seal_all) continue;
-    m.set(`L ${parcel}`, `L ${parcel} ${l.cell ?? "-"} ${l.last_change ?? "-"} ${l.seal_all ? 1 : 0}`);
+    if (b.content == null && !b.sealed) continue;
+    m.set(`B ${b.parcel} ${b.pack}`, `B ${b.parcel} ${b.pack} ${b.sealed ? 1 : 0} ${contentHash(b.content)}`);
   }
   for (const c of Object.values(state.cells)) {
-    m.set(
-      `C ${c.h3_cell}`,
-      `C ${c.h3_cell} ${c.parcel} ${c.key.height} ${c.key.tx_index} ${c.key.vout} ${c.from_commit ? 1 : 0} ${c.anchor_id}`,
-    );
-  }
-  for (const d of Object.values(state.districts)) {
-    m.set(
-      `D ${d.district}`,
-      `D ${d.district} ${d.founder_parcel} ${d.anchor_id} ${d.final_ ? 1 : 0} ${d.key.height} ${d.key.tx_index} ${d.key.vout}`,
-    );
+    m.set(`C ${c.h3_cell}`, `C ${c.h3_cell} ${c.parcel} ${c.key.height} ${c.key.tx_index} ${c.key.vout} ${c.anchor_id}`);
   }
   return m;
 }
 
-/** Canonical order of record keys: section T,P,B,L,C,D; numbers numerically; ids and cells bytewise. */
+/** Canonical order of record keys: section T,P,B,C; numbers numerically; ids and cells bytewise. */
 export function cmpKey(a, b) {
   const sa = SECTION[a[0]];
   const sb = SECTION[b[0]];
@@ -80,7 +68,6 @@ export function cmpKey(a, b) {
   const fb = b.split(" ");
   switch (a[0]) {
     case "T":
-    case "L":
       return Number(fa[1]) - Number(fb[1]);
     case "B":
       return Number(fa[1]) - Number(fb[1]) || cmpStr(fa[2], fb[2]);
@@ -102,12 +89,9 @@ export function delta(before, after) {
   return out;
 }
 
-const act = (h) => (h === null || h === undefined ? "null" : String(h));
-
+/** The root before any block: names the format, the network, and the H3 library. Nothing else. */
 export function genesisRoot(meta) {
-  return sha256hex(
-    `${STATE_VERSION}\nnetwork=${meta.network}\nmaps_activation=${act(meta.maps_activation)}\nland_activation=${act(meta.land_activation)}\nh3=${H3_VERSION}\n`,
-  );
+  return sha256hex(`${STATE_VERSION}\nnetwork=${meta.network}\nh3=${H3_VERSION}\n`);
 }
 
 export function deltaText(height, entries) {
@@ -120,14 +104,12 @@ export function nextRoot(prev, height, entries) {
   return sha256hex(prev + "\n" + deltaText(height, entries));
 }
 
-/** Full snapshot text (dmaps-checkpoint/2) at a height, for audits and bootstrapping comparisons. */
+/** Full snapshot text (dmaps-checkpoint/3) at a height, for audits and bootstrapping comparisons. */
 export function encodeCheckpoint(state, meta) {
   const lines = [
     CHECKPOINT_VERSION,
     `network=${meta.network}`,
     `height=${meta.height}`,
-    `maps_activation=${act(meta.maps_activation)}`,
-    `land_activation=${act(meta.land_activation)}`,
     `h3=${H3_VERSION}`,
     `root=${meta.root}`,
   ];

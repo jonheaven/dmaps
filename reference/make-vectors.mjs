@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 import { cellToParent, latLngToCell, isValidCell } from "h3-js";
 import { applyLog } from "./apply.mjs";
 import { encodeCheckpoint, checkpointHash, deltaText, genesisRoot, STATE_VERSION, CHECKPOINT_VERSION } from "./state.mjs";
-import { parse, authorize, canTakeCell, isCell, H3_ANCHOR_RES, H3_DISTRICT_RES, H3_REGION_RES, WINDOW, REANCHOR_COOLDOWN } from "../protocols/dland/codec.mjs";
-import { validateClaim, burnScriptHex, stakeFloor, dogemapsCell, CLAIM_WINDOW } from "./dmaps-claim.mjs";
+import { parse, authorize, canTakeCell, isCell, H3_ANCHOR_RES, H3_DISTRICT_RES, H3_REGION_RES, WINDOW } from "../protocols/dland/codec.mjs";
+import { parseClaim, dogemapsCell } from "./dmaps-claim.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -31,36 +31,45 @@ const T0 = id("a"), T1 = id("d"), T2 = id("9");
 const P = id("b"), Q = id("f"), R = id("8");
 const holder = { committed: true, spends_title_outpoint: true };
 
+const TXT = "text/plain;charset=utf-8";
+const JSN = "application/json";
+const claimJson = (bh, extra = {}) => JSON.stringify({ p: "Ð:MAPS", op: "claim", title: { block_height: bh }, ...extra });
+
 export const SCENARIO = {
   spec: STATE_VERSION,
   checkpoint: CHECKPOINT_VERSION,
   h3: "4.2.1",
   network: "regtest",
-  maps_activation: 0,
-  land_activation: 0,
   description:
-    "Worked indexer log. Events are an abstract encoding of confirmed inscriptions that already passed parsing; " +
-    "each carries the chain facts an indexer reads from the transaction. A conformant indexer MUST produce the listed " +
-    "delta and state_root after every height, and the listed snapshot_hash at heights that list one. Blocks with no " +
-    "delta leave the root unchanged.",
+    "Worked indexer log. A maps_claim event is an inscription (body, content type) whose body is complete in that block; " +
+    "the other events are an abstract encoding of confirmed ÐLand inscriptions that already passed parsing, each with " +
+    "the chain facts an indexer reads from the transaction. Events are in canonical order. A conformant indexer MUST " +
+    "produce the listed results, delta and state_root after every height, and the listed snapshot_hash. Blocks with " +
+    "no delta leave the root unchanged.",
   blocks: [
     { height: 100, events: [
-      { type: "maps_claim", block_height: 0, id: T0 },
-      { type: "maps_claim", block_height: 1, id: T1 },
-      { type: "maps_claim", block_height: 2, id: T2 },
-      { type: "maps_claim", block_height: 0, id: id("e"), comment: "duplicate: first valid claim already won" },
-      { type: "maps_claim", block_height: 3, id: id("7"), invalid: true, comment: "failed claim validity (for example no burn)" },
+      { type: "maps_claim", id: T0, body: "0.dogemap", content_type: TXT, comment: "the existing text convention" },
+      { type: "maps_claim", id: T1, body: claimJson(1, { v: "1", chain: "dogecoin", geo: { h3_res: 9, h3_cell: "8928308280fffff" }, fair: { stake_koinu: "1", stake_burn: true } }), content_type: JSN, comment: "a 0.1-era JSON claim: only p, op and title.block_height are read" },
+      { type: "maps_claim", id: T2, body: claimJson(2), content_type: TXT },
+      { type: "maps_claim", id: id("e"), body: "0.dogemap", content_type: TXT, comment: "duplicate: the first claim already won" },
+      { type: "maps_claim", id: id("e", 1), body: claimJson(0), content_type: JSN, comment: "duplicate in the other spelling" },
+      { type: "maps_claim", id: id("7"), body: "03.dogemap", content_type: TXT, comment: "leading zero" },
+      { type: "maps_claim", id: id("7", 1), body: " 3.dogemap", content_type: TXT, comment: "no trimming" },
+      { type: "maps_claim", id: id("7", 2), body: "3.dogemap", content_type: "image/png", comment: "not a text or JSON inscription" },
+      { type: "maps_claim", id: id("7", 3), body: "101.dogemap", content_type: TXT, comment: "block 101 does not exist yet" },
     ] },
     { height: 101, events: [
       { type: "pack", id: P, name: "street-scene", version: "1.0.0" },
       { type: "pack", id: Q, name: 'Ð shop "sign"', version: "2.0.0-beta" },
       { type: "pack", id: R, name: "lore", version: "1" },
+      { type: "maps_claim", id: id("6", 9), body: "101.dogemap", content_type: TXT, comment: "a block may be claimed in itself" },
     ] },
     { height: 102, events: [
       { type: "build", parcel: 0, title: T0, pack: P, id: id("1"), ...holder, content: { model: "ipfs://z" }, tx_index: 1 },
       { type: "build", parcel: 0, title: T0, pack: P, id: id("2"), committed: true, spends_title_outpoint: false, content: { model: "hacked" }, tx_index: 2, comment: "T1 non-holder" },
-      { type: "build", parcel: 0, title: T0, pack: P, id: id("2", 1), ...holder, op_index: 1, content: { model: "hacked" }, tx_index: 3, comment: "second inscription in the tx, not the vin[0] body" },
+      { type: "build", parcel: 0, title: T0, pack: P, id: id("2", 1), ...holder, op_index: 1, content: { model: "hacked" }, tx_index: 3, comment: "not the vin[0] inscription" },
       { type: "build", parcel: 0, title: T0, pack: id("c"), id: id("4"), ...holder, content: { x: 1 }, tx_index: 4, comment: "unknown pack" },
+      { type: "build", parcel: 3, title: id("7", 2), pack: P, id: id("4", 1), ...holder, content: { x: 1 }, tx_index: 5, comment: "parcel 3 has no title" },
     ] },
     { height: 103, events: [
       { type: "transfer", parcel: 0, title: T0, tx_index: 1 },
@@ -70,13 +79,13 @@ export const SCENARIO = {
       { type: "build", parcel: 0, title: T1, pack: P, id: id("6", 1), ...holder, content: { model: "mismatch" }, tx_index: 5, comment: "T5 body names another title" },
     ] },
     { height: 104, events: [
-      { type: "anchor", parcel: 0, title: T0, id: id("c", 0), h3_cell: CELL_A, ...holder, from_commit: true, priority: { height: 103, tx_index: 0, vout: 0 }, tx_index: 1 },
+      { type: "anchor", parcel: 0, title: T0, id: id("c", 0), h3_cell: CELL_A, ...holder, priority: { height: 103, tx_index: 0, vout: 0 }, tx_index: 1 },
     ] },
     { height: 105, events: [
-      { type: "anchor", parcel: 1, title: T1, id: id("c", 1), h3_cell: CELL_A2, ...holder, from_commit: true, priority: { height: 104, tx_index: 2, vout: 0 }, tx_index: 1 },
+      { type: "anchor", parcel: 1, title: T1, id: id("c", 1), h3_cell: CELL_A2, ...holder, priority: { height: 104, tx_index: 2, vout: 0 }, tx_index: 1 },
     ] },
     { height: 106, events: [
-      { type: "anchor", parcel: 1, title: T1, id: id("c", 2), h3_cell: CELL_B, ...holder, tx_index: 1, comment: "cooldown: 106 < 105 + 144" },
+      { type: "anchor", parcel: 1, title: T1, id: id("c", 2), h3_cell: CELL_B, ...holder, tx_index: 1, comment: "move: no cooldown; A2 is released" },
       { type: "build", parcel: 0, title: T0, pack: Q, id: id("1", 1), ...holder, content: { sign: "hi", n: [1, -2, 3] }, seal: true, tx_index: 2 },
     ] },
     { height: 107, events: [
@@ -84,31 +93,35 @@ export const SCENARIO = {
       { type: "build", parcel: 0, title: T0, pack: P, id: id("1", 3), ...holder, content: { model: "late" }, tx_index: 2, comment: "slot sealed" },
     ] },
     { height: 108, events: [
-      { type: "anchor", parcel: 2, title: T2, id: id("c", 3), h3_cell: CELL_A, ...holder, from_commit: true, priority: { height: 102, tx_index: 5, vout: 1 }, tx_index: 1, comment: "earlier commit displaces parcel 0 (pending); parcel 0 is unanchored; founder becomes parcel 2" },
+      { type: "anchor", parcel: 2, title: T2, id: id("c", 3), h3_cell: CELL_A, ...holder, priority: { height: 102, tx_index: 5, vout: 1 }, tx_index: 1, comment: "earlier commit displaces parcel 0 (pending); parcel 0 is unpinned" },
+      { type: "anchor", parcel: 0, title: T0, id: id("c", 4), h3_cell: CELL_A, ...holder, priority: { height: 103, tx_index: 0, vout: 0 }, tx_index: 2, comment: "the loser cannot take it back with its later key" },
     ] },
     { height: 109, events: [
-      { type: "anchor", parcel: 0, title: T0, id: id("c", 4), h3_cell: CELL_A2, ...holder, tx_index: 1, comment: "cooldown still runs from parcel 0's own last change (104)" },
+      { type: "anchor", parcel: 0, title: T0, id: id("c", 5), h3_cell: CELL_A2, ...holder, tx_index: 1, comment: "free cell (parcel 1 left it)" },
     ] },
     { height: 132, events: [], comment: "no delta: root unchanged" },
-    { height: 133, events: [], comment: "founder key 102 is final at tip 133 (133 > 102 + 30)" },
+    { height: 140, events: [
+      { type: "anchor", parcel: 101, title: id("6", 9), id: id("c", 6), h3_cell: CELL_A, ...holder, priority: { height: 1, tx_index: 0, vout: 0 }, tx_index: 1, comment: "final occupant (key 102, tip 140 > 132): even a lower key cannot take it" },
+      { type: "anchor", parcel: 101, title: id("6", 9), id: id("c", 7), clear: true, ...holder, tx_index: 2, comment: "nothing to clear" },
+    ] },
     { height: 250, events: [
-      { type: "anchor", parcel: 1, title: T1, id: id("c", 5), h3_cell: CELL_A2, ...holder, tx_index: 1, comment: "already on this cell: invalid, keeps its key" },
-      { type: "anchor", parcel: 1, title: T1, id: id("c", 6), clear: true, ...holder, tx_index: 2, comment: "clear; the district keeps its final founder" },
-      { type: "anchor", parcel: 0, title: T0, id: id("c", 7), h3_cell: CELL_B, ...holder, tx_index: 3, comment: "no commit in window: key is the reveal position" },
-      { type: "build", parcel: 0, title: T0, pack: R, id: id("1", 4), ...holder, content: { chapter: 1 }, seal_all: true, tx_index: 4 },
+      { type: "anchor", parcel: 0, title: T0, id: id("c", 8), h3_cell: CELL_A2, ...holder, tx_index: 1, comment: "already on this cell: nothing changes" },
+      { type: "anchor", parcel: 1, title: T1, id: id("c", 9), clear: true, ...holder, tx_index: 2, comment: "clear releases CELL_B" },
+      { type: "anchor", parcel: 101, title: id("6", 9), id: id("d", 1), h3_cell: CELL_B, ...holder, tx_index: 3, comment: "no commit in the window: the key is the reveal position" },
+      { type: "build", parcel: 0, title: T0, pack: R, id: id("1", 4), ...holder, content: { chapter: 1 }, seal_all: true, tx_index: 4, comment: "seal_all is not a field (ignored)" },
     ] },
     { height: 251, events: [
-      { type: "build", parcel: 0, title: T0, pack: R, id: id("1", 5), ...holder, content: { chapter: 2 }, tx_index: 1, comment: "parcel sealed (seal_all)" },
+      { type: "build", parcel: 0, title: T0, pack: R, id: id("1", 5), ...holder, content: { chapter: 2 }, tx_index: 1, comment: "supersede" },
       { type: "build", parcel: 1, title: T1, pack: P, id: id("1", 6), ...holder, content: { a: [1, 2], "é": "ü" }, tx_index: 2 },
     ] },
     { height: 252, events: [
-      { type: "build", parcel: 1, title: T1, pack: P, id: id("1", 7), ...holder, remove: true, tx_index: 1 },
+      { type: "build", parcel: 1, title: T1, pack: P, id: id("1", 7), ...holder, remove: true, tx_index: 1, comment: "remove: an unsealed empty slot has no record" },
     ] },
   ],
 };
 
 export function computeScenario(sc = SCENARIO) {
-  const meta = { network: sc.network, maps_activation: sc.maps_activation, land_activation: sc.land_activation };
+  const meta = { network: sc.network };
   const res = applyLog(sc.blocks, meta);
   const out = structuredClone(sc);
   out.genesis_root = genesisRoot(meta);
@@ -129,7 +142,7 @@ export function computeScenario(sc = SCENARIO) {
 // ÐLand conformance
 // ---------------------------------------------------------------------------
 
-const L = (o) => ({ p: "Ð:LAND", v: "1", ...o });
+const L = (o) => ({ p: "Ð:LAND", ...o });
 const TT = id("a"), PK = id("b");
 const big = "x".repeat(16384);
 const deep = (n) => "[".repeat(n) + "]".repeat(n);
@@ -153,7 +166,8 @@ const PARSE = [
   ["BUILD-006", "content null is not an object", L({ op: "build", parcel: 1, title: TT, pack: PK, content: null })],
   ["BUILD-007", "Title with a leading-zero index", L({ op: "build", parcel: 1, title: "a".repeat(64) + "i01", pack: PK, content: {} })],
   ["BUILD-008", "seal must be a boolean", L({ op: "build", parcel: 1, title: TT, pack: PK, content: {}, seal: 1 })],
-  ["BUILD-009", "Neither content, remove, seal, nor seal_all", L({ op: "build", parcel: 1, title: TT, pack: PK })],
+  ["BUILD-009", "Neither content, remove, nor seal", L({ op: "build", parcel: 1, title: TT, pack: PK })],
+  ["BUILD-011", "seal_all is not a field: alone it is not a build", L({ op: "build", parcel: 1, title: TT, pack: PK, seal_all: true })],
   ["BUILD-010", "Negative parcel", L({ op: "build", parcel: -1, title: TT, pack: PK, content: {} })],
   ["ANCHOR-001", "Valid res-12 anchor", L({ op: "anchor", parcel: 1, title: TT, h3_res: 12, h3_cell: CELL_A })],
   ["ANCHOR-002", "Res 9 overlay cell is not an anchor pin", L({ op: "anchor", parcel: 1, title: TT, h3_res: 12, h3_cell: "8928308280fffff" })],
@@ -169,7 +183,8 @@ const PARSE = [
   ["ANCHOR-012", "place must be an inscription id", L({ op: "anchor", parcel: 1, title: TT, h3_res: 12, h3_cell: CELL_A, place: "home" })],
   ["ANCHOR-013", "Valid anchor with a place", L({ op: "anchor", parcel: 1, title: TT, h3_res: 12, h3_cell: CELL_B, place: id("c") })],
   ["P-001", "Wrong marker", L({ p: "Ð:MAPS", op: "pack", name: "x", version: "1", schema: {} })],
-  ["P-002", "v must be the string \"1\"", L({ v: 1, op: "pack", name: "x", version: "1", schema: {} })],
+  ["P-002", "v is not read (no versions inside the protocol)", L({ v: 7, op: "pack", name: "x", version: "1", schema: {} })],
+  ["P-005", "A 0.2-era body with v \"1\" still parses", L({ v: "1", op: "pack", name: "x", version: "1", schema: {} })],
   ["P-003", "Unknown op", L({ op: "mint" })],
   ["P-004", "Unknown keys are ignored", L({ op: "pack", name: "x", version: "1", schema: {}, future: { a: [1] } })],
 ].map(([cid, description, payload]) => ({ id: cid, description, body: JSON.stringify(payload) }));
@@ -232,10 +247,10 @@ function landConformance() {
     .map((c) => ({ cell: c, valid_res12: isCell(c, 12) }));
   return {
     spec: "Ð:LAND",
-    version: "2",
+    version: "3",
     h3_library: "4.2.1",
-    constants: { h3_anchor_res: H3_ANCHOR_RES, h3_district_res: H3_DISTRICT_RES, h3_region_res: H3_REGION_RES, window: WINDOW, reanchor_cooldown: REANCHOR_COOLDOWN, max_payload: 16384, max_depth: 32 },
-    $comment: "parse: exact body text (UTF-8) -> pass, or fail with the reference reason. Conformant indexers MUST agree on pass/fail; the reason strings are informative. authorize: policy over chain facts (docs/INDEXING.md §5.2). cell: commit-first take rule. h3: parents an indexer MUST compute. Chain scenarios (T1–T8, cooldown, displacement, founders, reorg) are executable in ../../../vectors/indexer-state.json.",
+    constants: { h3_anchor_res: H3_ANCHOR_RES, h3_district_res: H3_DISTRICT_RES, h3_region_res: H3_REGION_RES, window: WINDOW, max_payload: 16384, max_depth: 32 },
+    $comment: "parse: exact body text (UTF-8) -> pass, or fail with the reference reason. Conformant indexers MUST agree on pass/fail; the reason strings are informative. authorize: policy over chain facts (docs/INDEXING.md §5.2). cell: commit-first take rule. h3: parents an indexer MUST compute. Chain scenarios (T1–T8, displacement, finality, reorg) are executable in ../../../vectors/indexer-state.json.",
     parse: parse_cases,
     authorize: AUTH,
     cell: CELL,
@@ -249,86 +264,66 @@ function landConformance() {
 // ---------------------------------------------------------------------------
 
 function mapsConformance() {
-  const claim = (bh, stake = "10000000", over = {}) => ({
-    p: "Ð:MAPS", v: "1", op: "claim", chain: "dogecoin",
-    title: { block_height: bh, tier: "standard" },
-    geo: { h3_res: 9, h3_cell: dogemapsCell(bh) },
-    fair: { stake_koinu: stake, stake_burn: true },
-    ...over,
-  });
-  const burn = (stake, value = stake) => ({ script_hex: burnScriptHex(stake), value: String(value) });
-  const pay = { script_hex: "76a914" + "11".repeat(20) + "88ac", value: "100000000" };
-  const tx = (...outputs) => ({ single_tx: true, outputs });
+  const TXT = "text/plain;charset=utf-8";
+  const JSN = "application/json";
+  const j = (o) => JSON.stringify(o);
   const C = [
-    ["CLAIM-001", "Valid claim, quiet network (G=0, floor 0.1 DOGE)", JSON.stringify(claim(0)), tx(burn(10000000n), pay), 100, 0],
-    ["CLAIM-002", "Burn output can be anywhere and overpay", JSON.stringify(claim(5000000, "20000000")), tx(pay, burn(20000000n, 25000000n)), 6000000, 0],
-    ["CLAIM-003", "Wrong derived cell", JSON.stringify(claim(12345, "10000000", { geo: { h3_res: 9, h3_cell: "8928308280fffff" } })), tx(burn(10000000n)), 100000, 0],
-    ["CLAIM-004", "Time travel: block_height above the confirmation height", JSON.stringify(claim(101)), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-005", "block_height equal to the confirmation height is fine", JSON.stringify(claim(100)), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-006", "Stake below the floor", JSON.stringify(claim(6000000, "1")), tx(burn(1n)), 6000001, 0],
-    ["CLAIM-007", "Floor at G=5000 is 3.6 DOGE: one koinu short", JSON.stringify(claim(7, "359999999")), tx(burn(359999999n)), 100, 5000],
-    ["CLAIM-008", "Floor at G=5000 is 3.6 DOGE: exact", JSON.stringify(claim(7, "360000000")), tx(burn(360000000n)), 100, 5000],
-    ["CLAIM-009", "G above 5000 is capped", JSON.stringify(claim(7, "360000000")), tx(burn(360000000n)), 100, 9000],
-    ["CLAIM-010", "No burn output", JSON.stringify(claim(0)), tx(pay), 100, 0],
-    ["CLAIM-011", "Burn output encodes a different amount", JSON.stringify(claim(0)), tx(burn(20000000n)), 100, 0],
-    ["CLAIM-012", "Burn output value below the stake", JSON.stringify(claim(0)), tx(burn(10000000n, 9999999n)), 100, 0],
-    ["CLAIM-013", "Burn pushed with OP_PUSHDATA1 is not the canonical script", JSON.stringify(claim(0)), tx({ script_hex: "6a4c11" + burnScriptHex(10000000n).slice(4), value: "10000000" }), 100, 0],
-    ["CLAIM-014", "v missing", JSON.stringify({ ...claim(0), v: undefined }), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-015", "Top-level alias shape is not a claim", JSON.stringify({ p: "Ð:MAPS", v: "1", op: "claim", chain: "dogecoin", block: 0, h3_cell: dogemapsCell(0), fair: { stake_koinu: "10000000", stake_burn: true } }), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-016", "chain must be \"dogecoin\"", JSON.stringify(claim(0, "10000000", { chain: "doge" })), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-017", "tier must be \"standard\"", JSON.stringify(claim(0, "10000000", { title: { block_height: 0, tier: "gold" } })), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-018", "h3_res is fixed at 9 (params never change it)", JSON.stringify(claim(12345, "10000000", { geo: { h3_res: 8, h3_cell: dogemapsCell(12345, 8) } })), tx(burn(10000000n)), 100000, 0],
-    ["CLAIM-019", "stake_koinu with a leading zero", JSON.stringify(claim(0, "010000000")), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-020", "stake_koinu as a number", JSON.stringify(claim(0, 10000000)), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-021", "stake_burn false", JSON.stringify(claim(0, "10000000", { fair: { stake_koinu: "10000000", stake_burn: false } })), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-022", "Body finished by a later chained reveal (multi-transaction)", JSON.stringify(claim(0)), { single_tx: false, outputs: [burn(10000000n)] }, 100, 0],
-    ["CLAIM-023", "Unknown keys (note, ts, nonce) are ignored", JSON.stringify(claim(0, "10000000", { note: "gm", ts: 1700000000, nonce: "n" })), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-024", "block_height written as 0.0", `{"p":"Ð:MAPS","v":"1","op":"claim","chain":"dogecoin","title":{"block_height":0.0,"tier":"standard"},"geo":{"h3_res":9,"h3_cell":"${dogemapsCell(0)}"},"fair":{"stake_koinu":"10000000","stake_burn":true}}`, tx(burn(10000000n)), 100, 0],
-    ["CLAIM-025", "Body larger than 8192 bytes", JSON.stringify(claim(0, "10000000", { note: "x".repeat(8192) })), tx(burn(10000000n)), 100, 0],
-    ["CLAIM-026", "stake_koinu above u64", JSON.stringify(claim(0, "18446744073709551616")), tx(burn(10000000n)), 100, 0],
-  ].map(([cid, description, body, t, height, g]) => {
-    const r = validateClaim(body, t, height, g);
-    const c = { id: cid, description, body, tx: t, height, g };
-    return r.ok ? { ...c, expect: "pass", block_height: r.block_height } : { ...c, expect: "fail", why: r.why };
+    ["CLAIM-001", "Text claim", "0.dogemap", TXT, 100],
+    ["CLAIM-002", "Text claim, plain text/plain", "5000000.dogemap", "text/plain", 6000000],
+    ["CLAIM-003", "Text claim with application/json media type (read like the existing index)", "7.dogemap", JSN, 100],
+    ["CLAIM-004", "Block equal to the confirmation height", "100.dogemap", TXT, 100],
+    ["CLAIM-005", "Time travel: block above the confirmation height", "101.dogemap", TXT, 100],
+    ["CLAIM-006", "Leading zero", "07.dogemap", TXT, 100],
+    ["CLAIM-007", "Sign", "+7.dogemap", TXT, 100],
+    ["CLAIM-008", "Leading space (no trimming)", " 7.dogemap", TXT, 100],
+    ["CLAIM-009", "Trailing newline (no trimming)", "7.dogemap\n", TXT, 100],
+    ["CLAIM-010", "Uppercase suffix", "7.DOGEMAP", TXT, 100],
+    ["CLAIM-011", "Two dots", "7.7.dogemap", TXT, 100],
+    ["CLAIM-012", "Empty number", ".dogemap", TXT, 100],
+    ["CLAIM-013", "Bitmap suffix is not a dogemap", "7.bitmap", TXT, 100],
+    ["CLAIM-014", "Image media type", "7.dogemap", "image/png", 100],
+    ["CLAIM-015", "No media type", "7.dogemap", null, 100],
+    ["CLAIM-016", "text/html is not text/plain", "7.dogemap", "text/html", 100],
+    ["CLAIM-017", "Eleven digits is above any real height", "12345678901.dogemap", TXT, 100],
+    ["CLAIM-018", "Unicode digits are not digits", "\u0667.dogemap", TXT, 100],
+    ["CLAIM-019", "JSON claim: p, op, title.block_height", j({ p: "Ð:MAPS", op: "claim", title: { block_height: 0 } }), JSN, 100],
+    ["CLAIM-020", "0.1-era JSON claim (v, chain, tier, geo, fair are not read)", j({ p: "Ð:MAPS", v: "1", op: "claim", chain: "dogecoin", title: { block_height: 12345, tier: "standard" }, geo: { h3_res: 9, h3_cell: dogemapsCell(12345) }, fair: { stake_koinu: "10000000", stake_burn: true } }), JSN, 100000],
+    ["CLAIM-021", "A wrong geo cell is not read (the cell is always derived)", j({ p: "Ð:MAPS", op: "claim", title: { block_height: 12345 }, geo: { h3_res: 9, h3_cell: "8928308280fffff" } }), JSN, 100000],
+    ["CLAIM-022", "JSON claim in a text/plain inscription", j({ p: "Ð:MAPS", op: "claim", title: { block_height: 0 } }), TXT, 100],
+    ["CLAIM-023", "JSON time travel", j({ p: "Ð:MAPS", op: "claim", title: { block_height: 101 } }), JSN, 100],
+    ["CLAIM-024", "Top-level block alias is not read", j({ p: "Ð:MAPS", op: "claim", block: 0 }), JSN, 100],
+    ["CLAIM-025", "block_height as a string", j({ p: "Ð:MAPS", op: "claim", title: { block_height: "0" } }), JSN, 100],
+    ["CLAIM-026", "block_height written as 0.0 (JSON profile)", '{"p":"Ð:MAPS","op":"claim","title":{"block_height":0.0}}', JSN, 100],
+    ["CLAIM-027", "Duplicate key (JSON profile)", '{"p":"Ð:MAPS","op":"claim","title":{"block_height":0},"title":{"block_height":1}}', JSN, 100],
+    ["CLAIM-028", "Wrong marker", j({ p: "dogemap", op: "claim", title: { block_height: 0 } }), JSN, 100],
+    ["CLAIM-029", "Other op", j({ p: "Ð:MAPS", op: "upgrade", title: { block_height: 0 } }), JSN, 100],
+    ["CLAIM-030", "params is not an op", j({ p: "Ð:MAPS", op: "params", params: { H3_RES: 8 } }), JSN, 100],
+    ["CLAIM-031", "JSON body larger than 8192 bytes", j({ p: "Ð:MAPS", op: "claim", title: { block_height: 0 }, note: "x".repeat(8192) }), JSN, 100],
+    ["CLAIM-032", "Any v is fine (no versions inside the protocol)", j({ p: "Ð:MAPS", v: "2", op: "claim", title: { block_height: 0 } }), JSN, 100],
+    ["CLAIM-033", "title must be an object", j({ p: "Ð:MAPS", op: "claim", title: 0 }), JSN, 100],
+  ].map(([cid, description, body, content_type, height]) => {
+    const r = parseClaim(body, content_type, height);
+    const c = { id: cid, description, body, content_type, height };
+    return r.ok ? { ...c, expect: "pass", block_height: r.block_height, form: r.form } : { ...c, expect: "fail", why: r.why };
   });
-  const floors = [0, 1, 100, 2500, 4999, 5000, 5001, 100000].map((g) => ({ g, floor_koinu: stakeFloor(g).toString() }));
   const OFFICIAL = [[0, 9], [1, 9], [12345, 8], [12345, 9], [5000000, 9], [6000000, 9], [999999999, 9]];
-  const vectors = [
-    {
-      id: "DOGEMAPS-001",
-      description: "Valid claim operation shape (§6.1) for height 0 with official res-9 cell",
-      schema: "schemas/operation.schema.json",
-      expect: "pass",
-      payload: claim(0),
-    },
-    {
-      id: "DOGEMAPS-002",
-      description: "Reject wrong protocol marker",
-      schema: "schemas/operation.schema.json",
-      expect: "fail",
-      expected_reason: "invalid_const: p",
-      payload: { p: "dogemap", v: "1", op: "claim", chain: "dogecoin" },
-    },
-    ...OFFICIAL.map(([bh, r]) => ({
-      id: `DOGEMAPS-GEO-${bh}-${r}`,
-      description: `Official derived cell for (block_height=${bh}, h3_res=${r})`,
-      expect: "cell",
-      block_height: bh,
-      h3_res: r,
-      h3_cell: dogemapsCell(bh, r),
-    })),
-  ];
+  const vectors = OFFICIAL.map(([bh, r]) => ({
+    id: `DOGEMAPS-GEO-${bh}-${r}`,
+    description: `Official derived cell for (block_height=${bh}, h3_res=${r})`,
+    expect: "cell",
+    block_height: bh,
+    h3_res: r,
+    h3_cell: dogemapsCell(bh, r),
+  }));
   const geo_batch = [];
   for (let bh = 0; bh < 256; bh++) geo_batch.push(dogemapsCell(bh, 9));
   return {
-    $comment: "ÐMaps v1. vectors: schema shape + official H3 cells (H3 4.2.1). claims: full claim validity (docs/INDEXING.md §4): body text, reveal tx outputs (scriptPubKey hex, value in koinu), confirmation height, G -> pass/fail. floors: stake floor by G. geo_batch: DOGEMAPS_H3(h, 9) for h = 0..255.",
-    version: "2",
+    $comment: "ÐMaps. claims: body text, content type, confirmation height -> pass (block_height, form) or fail (reference reason; pass/fail is normative, reason strings are informative). vectors: official derived H3 cells (H3 4.2.1). geo_batch: DOGEMAPS_H3(h, 9) for h = 0..255.",
+    version: "3",
     protocol: "Ð:MAPS",
     h3_library: "4.2.1",
-    claim_window: CLAIM_WINDOW,
-    vectors,
     claims: C,
-    floors,
+    vectors,
     geo_batch,
   };
 }

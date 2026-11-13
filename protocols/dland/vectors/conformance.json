@@ -1,266 +1,277 @@
 {
   "spec": "Ð:LAND",
-  "version": "2",
+  "version": "3",
   "h3_library": "4.2.1",
   "constants": {
     "h3_anchor_res": 12,
     "h3_district_res": 7,
     "h3_region_res": 4,
     "window": 30,
-    "reanchor_cooldown": 144,
     "max_payload": 16384,
     "max_depth": 32
   },
-  "$comment": "parse: exact body text (UTF-8) -> pass, or fail with the reference reason. Conformant indexers MUST agree on pass/fail; the reason strings are informative. authorize: policy over chain facts (docs/INDEXING.md §5.2). cell: commit-first take rule. h3: parents an indexer MUST compute. Chain scenarios (T1–T8, cooldown, displacement, founders, reorg) are executable in ../../../vectors/indexer-state.json.",
+  "$comment": "parse: exact body text (UTF-8) -> pass, or fail with the reference reason. Conformant indexers MUST agree on pass/fail; the reason strings are informative. authorize: policy over chain facts (docs/INDEXING.md §5.2). cell: commit-first take rule. h3: parents an indexer MUST compute. Chain scenarios (T1–T8, displacement, finality, reorg) are executable in ../../../vectors/indexer-state.json.",
   "parse": [
     {
       "id": "PACK-001",
       "description": "Valid pack with inline schema",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"street-scene\",\"version\":\"1.0.0\",\"schema\":{\"type\":\"object\"}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"street-scene\",\"version\":\"1.0.0\",\"schema\":{\"type\":\"object\"}}",
       "expect": "pass"
     },
     {
       "id": "PACK-002",
       "description": "Pack missing schema and schema_uri",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\"}",
       "expect": "fail",
       "why": "schema"
     },
     {
       "id": "PACK-003",
       "description": "Name is stored verbatim (no trimming)",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\" spaced \",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\" spaced \",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
       "expect": "pass"
     },
     {
       "id": "PACK-004",
       "description": "schema must be an object",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":\"object\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":\"object\"}",
       "expect": "fail",
       "why": "schema"
     },
     {
       "id": "PACK-005",
       "description": "null is not a valid value for note",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\",\"note\":null}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\",\"note\":null}",
       "expect": "fail",
       "why": "note"
     },
     {
       "id": "PACK-006",
       "description": "supersedes must be a canonical lowercase id",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\",\"supersedes\":\"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBi0\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\",\"supersedes\":\"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBi0\"}",
       "expect": "fail",
       "why": "supersedes"
     },
     {
       "id": "PACK-007",
       "description": "schema_uri longer than 512 code points",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema_uri\":\"ipfs://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}",
       "expect": "fail",
       "why": "schema_uri"
     },
     {
       "id": "PACK-008",
       "description": "Name of 64 code points (non-ASCII) is allowed",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"ÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"ÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
       "expect": "pass"
     },
     {
       "id": "PACK-009",
       "description": "Name of 65 code points",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"ÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"ÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ\",\"version\":\"1\",\"schema_uri\":\"ipfs://z\"}",
       "expect": "fail",
       "why": "name"
     },
     {
       "id": "PACK-010",
       "description": "Version must be printable ASCII",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1.0é\",\"schema_uri\":\"ipfs://z\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1.0é\",\"schema_uri\":\"ipfs://z\"}",
       "expect": "fail",
       "why": "version"
     },
     {
       "id": "BUILD-001",
       "description": "Valid build",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"model\":\"ipfs://z\"}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{\"model\":\"ipfs://z\"}}",
       "expect": "pass"
     },
     {
       "id": "BUILD-002",
       "description": "Build missing title",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
       "expect": "fail",
       "why": "title"
     },
     {
       "id": "BUILD-003",
       "description": "Seal without content (keeps live content)",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"seal\":true}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"seal\":true}",
       "expect": "pass"
     },
     {
       "id": "BUILD-004",
       "description": "Parcel above u32",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":4294967296,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":4294967296,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
       "expect": "fail",
       "why": "parcel"
     },
     {
       "id": "BUILD-005",
       "description": "Remove with content",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"remove\":true,\"content\":{}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"remove\":true,\"content\":{}}",
       "expect": "fail",
       "why": "content_on_remove"
     },
     {
       "id": "BUILD-006",
       "description": "content null is not an object",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":null}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":null}",
       "expect": "fail",
       "why": "content"
     },
     {
       "id": "BUILD-007",
       "description": "Title with a leading-zero index",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai01\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai01\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
       "expect": "fail",
       "why": "title"
     },
     {
       "id": "BUILD-008",
       "description": "seal must be a boolean",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{},\"seal\":1}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{},\"seal\":1}",
       "expect": "fail",
       "why": "seal"
     },
     {
       "id": "BUILD-009",
-      "description": "Neither content, remove, seal, nor seal_all",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\"}",
+      "description": "Neither content, remove, nor seal",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\"}",
+      "expect": "fail",
+      "why": "content"
+    },
+    {
+      "id": "BUILD-011",
+      "description": "seal_all is not a field: alone it is not a build",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"seal_all\":true}",
       "expect": "fail",
       "why": "content"
     },
     {
       "id": "BUILD-010",
       "description": "Negative parcel",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"build\",\"parcel\":-1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"build\",\"parcel\":-1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"pack\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbi0\",\"content\":{}}",
       "expect": "fail",
       "why": "parcel"
     },
     {
       "id": "ANCHOR-001",
       "description": "Valid res-12 anchor",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37ff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37ff\"}",
       "expect": "pass"
     },
     {
       "id": "ANCHOR-002",
       "description": "Res 9 overlay cell is not an anchor pin",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8928308280fffff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8928308280fffff\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-003",
       "description": "Clear",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"clear\":true}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"clear\":true}",
       "expect": "pass"
     },
     {
       "id": "ANCHOR-004",
       "description": "Uppercase cell",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8C28308280F37FF\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8C28308280F37FF\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-005",
       "description": "Res-12 bits but digit 12 is 7 (not a cell)",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f3fff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f3fff\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-006",
       "description": "Unused digit below res 12 is not 7",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37f8\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37f8\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-007",
       "description": "Pentagon base cell with a deleted (leading 1) digit",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c08400000001ff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c08400000001ff\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-008",
       "description": "Base cell 122 does not exist",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8cf4000000001ff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8cf4000000001ff\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-009",
       "description": "h3_res is required",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_cell\":\"8c28308280f37ff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_cell\":\"8c28308280f37ff\"}",
       "expect": "fail",
       "why": "h3_res"
     },
     {
       "id": "ANCHOR-010",
       "description": "Clear must not carry a cell or resolution",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"clear\":true,\"h3_res\":12}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"clear\":true,\"h3_res\":12}",
       "expect": "fail",
       "why": "cell_on_clear"
     },
     {
       "id": "ANCHOR-011",
       "description": "Cell with a 0x prefix",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"0x8c28308280f37ff\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"0x8c28308280f37ff\"}",
       "expect": "fail",
       "why": "h3_cell"
     },
     {
       "id": "ANCHOR-012",
       "description": "place must be an inscription id",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37ff\",\"place\":\"home\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8c28308280f37ff\",\"place\":\"home\"}",
       "expect": "fail",
       "why": "place"
     },
     {
       "id": "ANCHOR-013",
       "description": "Valid anchor with a place",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8cbe0e35c0943ff\",\"place\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"anchor\",\"parcel\":1,\"title\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaai0\",\"h3_res\":12,\"h3_cell\":\"8cbe0e35c0943ff\",\"place\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccci0\"}",
       "expect": "pass"
     },
     {
       "id": "P-001",
       "description": "Wrong marker",
-      "body": "{\"p\":\"Ð:MAPS\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "body": "{\"p\":\"Ð:MAPS\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
       "expect": "fail",
       "why": "p"
     },
     {
       "id": "P-002",
-      "description": "v must be the string \"1\"",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":1,\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
-      "expect": "fail",
-      "why": "v"
+      "description": "v is not read (no versions inside the protocol)",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":7,\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "expect": "pass"
+    },
+    {
+      "id": "P-005",
+      "description": "A 0.2-era body with v \"1\" still parses",
+      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{}}",
+      "expect": "pass"
     },
     {
       "id": "P-003",
       "description": "Unknown op",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"mint\"}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"mint\"}",
       "expect": "fail",
       "why": "op"
     },
     {
       "id": "P-004",
       "description": "Unknown keys are ignored",
-      "body": "{\"p\":\"Ð:LAND\",\"v\":\"1\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{},\"future\":{\"a\":[1]}}",
+      "body": "{\"p\":\"Ð:LAND\",\"op\":\"pack\",\"name\":\"x\",\"version\":\"1\",\"schema\":{},\"future\":{\"a\":[1]}}",
       "expect": "pass"
     },
     {

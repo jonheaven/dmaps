@@ -1,14 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "dland/v1/operation",
-  "$comment": "Shape only. Validity also needs the JSON profile, i0 in a bound ord envelope, the title spend and a valid H3 cell (docs/INDEXING.md §2, §5). maxLength counts UTF-16 units here; the spec limits are code points.",
+  "$id": "dland/operation",
+  "$comment": "Shape only. Validity also needs the JSON profile, i0 in a bound ord envelope, the title spend and a valid H3 cell (docs/INDEXING.md §2, §5). v is not read; seal_all is not a field (both are ignored like any unknown key). maxLength counts UTF-16 units here; the spec limits are code points.",
   "title": "ÐLand (p: Ð:LAND) operation",
   "type": "object",
-  "required": ["p", "v", "op"],
+  "required": ["p", "op"],
   "additionalProperties": true,
   "properties": {
     "p": { "const": "Ð:LAND" },
-    "v": { "const": "1" },
     "op": { "enum": ["pack", "build", "anchor"] },
     "name": { "type": "string", "minLength": 1, "maxLength": 64 },
     "version": { "type": "string", "minLength": 1, "maxLength": 32 },
@@ -22,7 +21,6 @@
     "content": { "type": "object" },
     "remove": { "type": "boolean" },
     "seal": { "type": "boolean" },
-    "seal_all": { "type": "boolean" },
     "h3_res": { "const": 12 },
     "h3_cell": { "type": "string", "pattern": "^8[0-9a-f]{14}$" },
     "place": { "type": "string", "pattern": "^[0-9a-f]{64}i(0|[1-9][0-9]{0,9})$" },
@@ -38,7 +36,15 @@
     },
     {
       "if": { "properties": { "op": { "const": "build" } }, "required": ["op"] },
-      "then": { "required": ["parcel", "title", "pack"] }
+      "then": {
+        "required": ["parcel", "title", "pack"],
+        "anyOf": [
+          { "required": ["content"] },
+          { "required": ["remove"], "properties": { "remove": { "const": true } } },
+          { "required": ["seal"], "properties": { "seal": { "const": true } } }
+        ],
+        "not": { "required": ["remove", "content"], "properties": { "remove": { "const": true } } }
+      }
     },
     {
       "if": { "properties": { "op": { "const": "anchor" } }, "required": ["op"] },

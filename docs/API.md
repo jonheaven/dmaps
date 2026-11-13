@@ -2,7 +2,7 @@
 
 This is the read API a dApp uses to show ÐMaps parcels and ÐLand packs, builds, and anchors. It describes what Dogex serves today, route for route and field for field.
 
-**The chain is the authority, not this API.** Every title and every ÐLand op is a Dogecoin inscription. Any indexer that follows [INDEXING.md](INDEXING.md) reaches the same state from the same blocks, and two indexers can compare the `dmaps-state/2` root at any height. Dogex is one such reader. Treat its answers as a convenience, and compare state roots (or a second indexer) when it matters.
+**The chain is the authority, not this API.** Every title and every ÐLand op is a Dogecoin inscription. Any indexer that follows [INDEXING.md](INDEXING.md) reaches the same state from the same blocks, and two indexers can compare the `dmaps-state/3` root at any height. Dogex is one such reader. Treat its answers as a convenience, and compare state roots (or a second indexer) when it matters.
 
 ## Base URL
 
@@ -17,9 +17,9 @@ No API key. CORS is open. Every route is `GET`, read-only, and returns `applicat
 
 Conventions: heights and parcel numbers are decimal integers. Inscription ids are `<64 lowercase hex>i<n>`. H3 indexes are lowercase hex with no `0x` and no leading zeros. Addresses are Dogecoin base58.
 
-## Activation: read this before you trust an empty answer
+## Operator switch: read this before you trust an empty answer
 
-`maps_activation_height` and `land_activation_height` are `null` until a mainnet height is announced in [INDEXING.md](INDEXING.md). While a height is `null`, Dogex indexes nothing for that protocol on that network: title lists are empty, `parcel` lookups return 404, the state root stays the genesis root, and pack/build/anchor lists are empty. That is expected, not an outage. On regtest both are `0` (live from genesis).
+The protocols have no activation height: the rules apply from block 0 ([INDEXING.md](INDEXING.md) §1). A Dogex host may still have them switched off. `maps_activation_height` and `land_activation_height` report that operator setting (`null` = off, the mainnet default). While one is `null`, Dogex indexes nothing for that protocol: title lists are empty, `parcel` lookups return 404, the state root stays the genesis root, and pack/build/anchor lists are empty. That is expected, not an outage. On regtest both are `0`.
 
 Always read `GET /api/land/status` first and check `maps_live` / `land_live` before you tell a user that a parcel or cell is unclaimed. An operator can set a height early with `DOGEX_DOGEMAP_ACTIVATION_HEIGHT` / `DOGEX_LAND_ACTIVATION_HEIGHT`; `/api/land/status` always reports the value the process is using.
 
@@ -40,7 +40,7 @@ Unknown query parameters are ignored.
 | Routes | Style |
 | --- | --- |
 | `/api/doginals/dogemaps/claims` | `offset` (count of titles) and `limit` (default 50, max 500). `page_size` is accepted as a synonym for `limit` |
-| `/api/land/packs`, `/builds`, `/anchors`, `/districts`, `/district/{h3}`, `/region/{h3}` | Cursor. The response has `next` (`null` on the last page); pass it as `after=` for the next page. `after` is exclusive. Rows also carry their own `cursor`. `limit` default 100, max 500. Every list is served from an index, so nothing is capped: page until `next` is `null` |
+| `/api/land/packs`, `/builds`, `/anchors`, `/districts`, `/district/{h3}`, `/region/{h3}`, `/holder/{address}` | Cursor. The response has `next` (`null` on the last page); pass it as `after=` for the next page. `after` is exclusive. Rows also carry their own `cursor`. `limit` default 100, max 500. Every list is served from an index, so nothing is capped: page until `next` is `null` |
 
 ## Status
 
@@ -57,14 +57,12 @@ Unknown query parameters are ignored.
   "land_live": false,
   "maps_flag": true,
   "land_flag": true,
-  "state_version": "dmaps-state/2",
-  "checkpoint_version": "dmaps-checkpoint/2",
+  "state_version": "dmaps-state/3",
+  "checkpoint_version": "dmaps-checkpoint/3",
   "state_root": "<64 hex>",
   "state_root_height": null,
   "routes": ["GET /api/land/status", "GET /api/land/parcel/{block}", "…"],
   "window": 30,
-  "reanchor_cooldown": 144,
-  "claim_window": 2016,
   "h3": "4.2.1",
   "h3_res": 12,
   "district_res": 7,
@@ -74,7 +72,7 @@ Unknown query parameters are ignored.
 }
 ```
 
-`network` is `dogecoin`, `testnet`, or `regtest`. `maps_live` / `land_live` are `true` once the height is set and `tip` has reached it. `maps_flag` / `land_flag` are `false` when the operator turned the protocol off for this process. `state_root` is the current `dmaps-state/2` root and `state_root_height` the last height that changed it (`null` = still the genesis root).
+`network` is `dogecoin`, `testnet`, or `regtest`. `maps_live` / `land_live` are `true` once the operator height is set and `tip` has reached it. `maps_flag` / `land_flag` are `false` when the operator turned the protocol off for this process. `state_root` is the current `dmaps-state/3` root and `state_root_height` the last height that changed it (`null` = still the genesis root).
 
 ## Capabilities
 
@@ -98,9 +96,9 @@ Unknown query parameters are ignored.
     "holder_spend": true,
     "commit_first": true,
     "strict_json_profile": true,
-    "claim_validity": { "derived_cell": true, "stake_floor": true, "burn_output": true },
-    "state_version": "dmaps-state/2",
-    "checkpoint_version": "dmaps-checkpoint/2",
+    "claim_validity": { "text_dogemap": true, "json_claim": true, "first_inscription_wins": true, "derived_cell": true, "stake": false },
+    "state_version": "dmaps-state/3",
+    "checkpoint_version": "dmaps-checkpoint/3",
     "paginated_districts": true,
     "maps_h3_res": 9,
     "neighbors_indexed": false,
@@ -129,7 +127,7 @@ Unknown query parameters are ignored.
 | GET | `/api/doginals/r/dogemap/count` | `{ "count": N }` |
 | GET | `/api/doginals/address/{address}/dogemaps` | Titles the address holds now |
 
-Only canonical v1 titles (`p: "Ð:MAPS"`, `op: "claim"`, first valid claim per height under [INDEXING.md §4](INDEXING.md): derived cell, stake floor, burn output) appear. Legacy `{n}.dogemap` text never takes a title slot.
+Only canonical titles appear: the first `<n>.dogemap` text or JSON claim per height ([INDEXING.md §4](INDEXING.md)). Both forms share one slot.
 
 `GET /api/doginals/dogemaps/claims/0`:
 
@@ -215,21 +213,17 @@ Only canonical v1 titles (`p: "Ð:MAPS"`, `op: "claim"`, first valid claim per h
     "priority": { "height": 103, "tx_index": 0, "vout": 0 },
     "from_commit": true,
     "anchor_id": "cccc…i0",
-    "parcel": 0,
-    "cooldown_remaining": 0
+    "parcel": 0
   },
-  "seal_all": false,
-  "last_change": 103,
-  "cooldown_remaining": 0,
   "is_founder": true,
-  "standing": { "version": "land-standing/1", "neighbors_indexed": false }
+  "standing": { "version": "land-standing/2", "neighbors_indexed": false }
 }
 ```
 
 - `holder` is the address holding the title inscription now (not the address that claimed it). `null` if the indexer cannot place it.
-- `anchor` is `null` when the parcel has no live anchor. `status` is `pending` until the anchor is more than `window` (30) blocks deep, then `final`. `final_after_height` is the last height at which it can still be displaced. `cooldown_remaining` is blocks until the holder may re-anchor (144-block cooldown); `last_change` is the height of the last cell change.
-- `builds` is the first page (100) of the parcel's slots; `builds_next` is the cursor for `/api/land/builds?parcel=…&after=` when there are more. `title_h3` is the title's derived res-9 cell.
-- `is_founder` is `true` when this parcel founded its res-7 district.
+- `anchor` is `null` when the parcel has no live anchor. `status` is `pending` until the anchor is more than `window` (30) blocks deep, then `final`. `final_after_height` is the last height at which it can still be displaced. There is no cooldown. `from_commit` says whether the key came from a commit (informative, not in the state root).
+- `builds` is the first page (100) of the parcel's slots; `applied` counts accepted builds (informative, not in the state root); `builds_next` is the cursor for `/api/land/builds?parcel=…&after=` when there are more. `title_h3` is the title's derived res-9 cell.
+- `is_founder` is `true` when this parcel holds the lowest live key in its res-7 district (derived on read, non-consensus; it can change).
 - `standing` is advisory and not in the state root. Dogex does not compute a `score` or neighbor counts (`neighbors_indexed: false`).
 - 404 when the height has no canonical title.
 
@@ -266,12 +260,10 @@ Only canonical v1 titles (`p: "Ð:MAPS"`, `op: "claim"`, first valid claim per h
 | GET | `/api/land/anchors?after=&limit=` | `{ anchors: [anchor + cursor], next }`, live res-12 occupants in cell order |
 | GET | `/api/land/cell/{h3}` | One res-12 cell: the anchor object plus `protocol`, or `{ protocol, h3_cell, h3_res, district, region, status: "free" }` |
 | GET | `/api/land/district/{h3}?after=&limit=` | `{ protocol, district, region, h3_res: 7, live_cells, founder, parcels, next, standing }`; `parcels` in priority order |
-| GET | `/api/land/districts?after=&limit=` | `{ protocol, h3_res: 7, districts: [{ district, region, founder_parcel, anchor_id, final, priority, cursor }], next }` |
+| GET | `/api/land/districts?after=&limit=` | `{ protocol, h3_res: 7, districts: [{ district, region, live_cells, founder, cursor }], next }`; every district with a live anchor, ordered by region then district (cursor `region\|district`) |
 | GET | `/api/land/region/{h3}?after=&limit=` | `{ protocol, region, h3_res: 4, districts: [{ district, live_cells, founder, cursor }], next, standing }`; districts with live cells, in id order |
 
 `{h3}` must be a canonical lowercase H3 cell (`isValidCell`). `cell` takes res 12 only. `district` and `region` take a cell at that resolution or any finer cell, which is converted with `cellToParent`.
-
-`cooldown_remaining` is always `0` in `/anchors` and `/district` rows; read `/api/land/parcel/{block}` or `/api/land/cell/{h3}` for the live value.
 
 `GET /api/land/cell/8c28308280f37ff` when free:
 
@@ -280,26 +272,28 @@ Only canonical v1 titles (`p: "Ð:MAPS"`, `op: "claim"`, first valid claim per h
   "district": "872830828ffffff", "region": "8428309ffffffff", "status": "free" }
 ```
 
-`founder` in a district is `null` while the district has no live anchor and no final founder, otherwise `{ parcel, anchor_id, final, priority }`. It is the lowest-key live occupant until that key is final, then permanent ([INDEXING.md §5.5](INDEXING.md)).
+`founder` is `null` while the district has no live anchor, otherwise `{ parcel, anchor_id, final, priority, derived: true }`: the lowest-key live occupant, computed on read. `final` means that key is final at the tip. It is not stored, not in the state root, and it moves if that parcel leaves ([INDEXING.md §5.5](INDEXING.md)).
 
 Dogex does not store missed or losing anchor attempts, so `cell` has no `missed` field.
 
-Limits: `/holder/{address}` fills `anchored` and `builds` for the first 500 titles the address holds, and at most 100 builds per parcel. Every other list is paged without a cap.
+Limits: `/holder/{address}` lists at most 100 builds per parcel on a page; use `/api/land/builds?parcel=` for the rest. No list is capped.
 
 ## Holders
 
-`GET /api/land/holder/{address}`
+`GET /api/land/holder/{address}?after=&limit=`
 
 ```json
 {
   "address": "D…",
+  "total": 2,
   "titles": [0, 42],
-  "anchored": [0],
-  "builds": [{ "parcel": 0, "pack": "bbbb…i0" }]
+  "anchored": [{ "parcel": 0, "h3_cell": "8c28308280f37ff" }],
+  "builds": [{ "parcel": 0, "pack": "bbbb…i0" }],
+  "next": null
 }
 ```
 
-`titles` are the parcels the address holds now. `anchored` is the subset with a live anchor.
+`titles` are the parcels the address holds now, in block order; `total` is the count across all pages. `anchored` and `builds` cover this page's titles. `after` is the last block number already seen; `next` is the cursor of the next page (`null` on the last).
 
 ## State root (identical-index check)
 
@@ -308,16 +302,16 @@ Limits: `/holder/{address}` fills `anchored` and `builds` for the first 500 titl
 | GET | `/api/dmaps/state/root` | Root at the indexed tip |
 | GET | `/api/dmaps/state/root/{height}` | Root after a height |
 | GET | `/api/dmaps/state/delta/{height}` | The record changes applied at a height |
-| GET | `/api/dmaps/checkpoint/latest` | Full `dmaps-checkpoint/2` snapshot at the indexed tip |
+| GET | `/api/dmaps/checkpoint/latest` | Full `dmaps-checkpoint/3` snapshot at the indexed tip |
 | GET | `/api/land/state/…`, `/api/land/checkpoint/latest` | Same bodies |
 
 `GET /api/dmaps/state/root/100` (regtest vector):
 
 ```json
 {
-  "version": "dmaps-state/2",
+  "version": "dmaps-state/3",
   "height": 100,
-  "root": "398d9c7df50b8f907288e14a0482e227c8a23840659c9675c7359efaae5bc38e",
+  "root": "4cdcdf583f6d352d3b1276fac4eeea019823f80528baccaf6466d3b4c09c6481",
   "last_change_height": 100
 }
 ```
@@ -326,27 +320,27 @@ Limits: `/holder/{address}` fills `anchored` and `builds` for the first 500 titl
 
 ```json
 {
-  "version": "dmaps-state/2",
+  "version": "dmaps-state/3",
   "height": 100,
-  "prev_root": "274aefa54afb19babd38f49c47ce619e21e179ce6c637ad18b0925aa017a6dd8",
-  "root": "398d9c7df50b8f907288e14a0482e227c8a23840659c9675c7359efaae5bc38e",
+  "prev_root": "0107e63fb9dfc6a6a21937faaefceb20b78c612314433991550e6d530f8931d1",
+  "root": "4cdcdf583f6d352d3b1276fac4eeea019823f80528baccaf6466d3b4c09c6481",
   "entries": ["+T 0 aaaa…i0", "+T 1 dddd…i0", "+T 2 9999…i0"],
   "delta_text": "height=100\n+T 0 aaaa…i0\n…"
 }
 ```
 
-`root = SHA-256(prev_root + "\n" + delta_text)` for a block that changed state; a block that changed nothing keeps the root, has `entries: []` and `delta_text: null`. `last_change_height` is the last height at or below `height` that changed state (`null` = genesis root). Two indexers that agree on the root at a height hold identical records ([INDEXING.md §8](INDEXING.md)).
+`root = SHA-256(prev_root + "\n" + delta_text)` for a block that changed state; a block that changed nothing keeps the root, has `entries: []` and `delta_text: null`. `last_change_height` is the last height at or below `height` that changed state (`null` = genesis root). Two indexers that agree on the root at a height hold identical records ([INDEXING.md §8](INDEXING.md)). The root is an audit commitment; no rule reads it.
 
 `GET /api/dmaps/checkpoint/latest`:
 
 ```json
 {
-  "version": "dmaps-checkpoint/2",
-  "state_version": "dmaps-state/2",
+  "version": "dmaps-checkpoint/3",
+  "state_version": "dmaps-state/3",
   "height": 252,
-  "root": "9600db165c892a7beb6d2a2ce32bf73d9c9f856caac83caec1e81bc8c2c41c31",
+  "root": "e7e474419883cc59b276df927a85d9dd8779f5d751fc97b98b526b59d4bcb876",
   "hash": "<sha-256 of checkpoint>",
-  "checkpoint": "dmaps-checkpoint/2\nnetwork=regtest\nheight=252\n…\nroot=9600…\nT 0 aaaa…i0\n…"
+  "checkpoint": "dmaps-checkpoint/3\nnetwork=regtest\nheight=252\n…\nroot=e7e4…\nT 0 aaaa…i0\n…"
 }
 ```
 
