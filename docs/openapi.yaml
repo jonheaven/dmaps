@@ -1,92 +1,247 @@
 openapi: 3.1.0
 info:
   title: Dogex ÐMaps / ÐLand API
-  version: "0.1"
-  description: Read-only indexer API so a dApp can resolve titles, packs, builds, anchors, cells, districts, holders, and checkpoints. Normative behavior is docs/API.md and docs/INDEXING.md.
+  version: "0.2"
+  description: >-
+    Read-only indexer API so a dApp can resolve titles, packs, builds, anchors, cells,
+    districts, regions, holders, and checkpoints. The chain is the authority; this API is a
+    read convenience. Normative behavior is docs/API.md and docs/INDEXING.md. Every error is an
+    HTTP status with a plain-text body.
   license:
     name: MIT
 servers:
-  - url: /api
-    description: Dogex origin (same host as /api/doginals/capabilities)
+  - url: https://dogex.command.dog
+    description: Public Dogex index (mainnet)
+  - url: http://127.0.0.1:8080
+    description: Self-hosted dogexd
+components:
+  parameters:
+    After:
+      in: query
+      name: after
+      description: Cursor of the last row already seen (exclusive).
+      schema: { type: string }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+    Block:
+      in: path
+      name: block
+      required: true
+      schema: { type: integer, minimum: 0 }
+    H3:
+      in: path
+      name: h3
+      required: true
+      description: Lowercase hex H3 index, no 0x, no leading zeros.
+      schema: { type: string, pattern: "^[0-9a-f]{15,16}$" }
+    Address:
+      in: path
+      name: address
+      required: true
+      schema: { type: string }
+    Height:
+      in: path
+      name: height
+      required: true
+      schema: { type: integer, minimum: 0 }
+  responses:
+    BadRequest:
+      description: A path value did not parse (plain-text body)
+      content: { text/plain: { schema: { type: string } } }
+    NotFound:
+      description: Not found (plain-text body)
+      content: { text/plain: { schema: { type: string } } }
+    Unavailable:
+      description: Inscription indexer not loaded on this host (plain-text body)
+      content: { text/plain: { schema: { type: string } } }
+  schemas:
+    Priority:
+      type: object
+      properties:
+        height: { type: integer }
+        tx_index: { type: integer }
+        vout: { type: integer }
+    Claim:
+      type: object
+      properties:
+        block_number: { type: integer }
+        inscription_id: { type: string }
+        sequence_number: { type: integer }
+        inscription_number: { type: integer }
+        claim_height: { type: integer }
+        claim_timestamp: { type: integer }
+        lat: { type: number, description: "§7 seed latitude at res 9" }
+        lon: { type: number, description: "§7 seed longitude at res 9" }
+        body: { type: string, enum: [earth] }
+    Build:
+      type: object
+      properties:
+        pack: { type: string }
+        pack_name: { type: [string, "null"] }
+        content: {}
+        sealed: { type: boolean }
+        applied: { type: integer }
+        last_build: { type: [string, "null"] }
+        last_height: { type: [integer, "null"] }
+        parcel: { type: integer }
+        cursor: { type: string }
+    Anchor:
+      type: object
+      properties:
+        h3_cell: { type: string }
+        h3_res: { type: integer, enum: [12] }
+        district: { type: [string, "null"] }
+        region: { type: [string, "null"] }
+        status: { type: string, enum: [pending, final] }
+        priority: { $ref: "#/components/schemas/Priority" }
+        from_commit: { type: boolean }
+        anchor_id: { type: string }
+        parcel: { type: integer }
+        cooldown_remaining: { type: integer }
+    Checkpoint:
+      type: object
+      properties:
+        version: { type: string, enum: [dmaps-checkpoint/1] }
+        height: { type: integer }
+        hash: { type: string, description: SHA-256 of checkpoint }
+        checkpoint: { type: string }
 paths:
-  /doginals/capabilities:
+  /api/doginals/capabilities:
     get:
-      summary: Protocol capabilities and activation
+      summary: Protocol capabilities (land block and activation are mainnet defaults)
+      responses:
+        "200": { description: Capabilities document }
+  /api/land/status:
+    get:
+      summary: Network, tip, activation heights (null = unset, off), live flags, H3 constants, route list
       responses:
         "200":
-          description: Capabilities document
-  /land/status:
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  protocol: { type: string }
+                  network: { type: string, enum: [dogecoin, testnet, regtest] }
+                  tip: { type: integer }
+                  maps_activation_height: { type: [integer, "null"] }
+                  land_activation_height: { type: [integer, "null"] }
+                  maps_live: { type: boolean }
+                  land_live: { type: boolean }
+                  maps_flag: { type: boolean }
+                  land_flag: { type: boolean }
+                  checkpoint_version: { type: string }
+                  routes: { type: array, items: { type: string } }
+                  window: { type: integer }
+                  reanchor_cooldown: { type: integer }
+                  h3: { type: string }
+                  h3_res: { type: integer }
+                  district_res: { type: integer }
+                  region_res: { type: integer }
+                  neighbors_indexed: { type: boolean }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /api/doginals/dogemaps/claims:
     get:
-      summary: LAND activation, tip, H3 constants
-      responses:
-        "200": { description: Status }
-  /doginals/dogemaps/claims:
-    get:
-      summary: Page of canonical ÐMaps v1 claims
+      summary: Page of canonical ÐMaps v1 titles in block order
       parameters:
         - in: query
           name: offset
-          schema: { type: integer, minimum: 0 }
+          schema: { type: integer, minimum: 0, default: 0 }
         - in: query
           name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+        - in: query
+          name: page_size
+          description: Synonym for limit
           schema: { type: integer, minimum: 1, maximum: 500 }
       responses:
-        "200": { description: Claim list }
-  /doginals/r/dogemap/block/{block}:
+        "200":
+          description: Title page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  claims: { type: array, items: { $ref: "#/components/schemas/Claim" } }
+                  total: { type: integer }
+                  offset: { type: integer }
+                  page_size: { type: integer }
+                  limit: { type: integer }
+  /api/doginals/dogemaps/claims/{block}:
     get:
-      summary: Canonical title for one block height
+      summary: Title for one block height (entries is empty when unclaimed)
       parameters:
-        - in: path
-          name: block
-          required: true
-          schema: { type: integer, minimum: 0 }
+        - $ref: "#/components/parameters/Block"
       responses:
-        "200": { description: Claim }
-        "404": { description: No canonical title }
-  /doginals/r/dogemap/list:
+        "200":
+          description: Title lookup
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  block_number: { type: integer }
+                  entries: { type: array, items: { $ref: "#/components/schemas/Claim" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/doginals/r/dogemap/block/{block}:
     get:
-      summary: Alias of /doginals/dogemaps/claims
+      summary: Alias of /api/doginals/dogemaps/claims/{block}
+      parameters:
+        - $ref: "#/components/parameters/Block"
       responses:
-        "200": { description: Claim list }
-  /doginals/r/dogemap/count:
+        "200": { description: Title lookup }
+  /api/doginals/r/dogemap/list:
+    get:
+      summary: Alias of /api/doginals/dogemaps/claims
+      responses:
+        "200": { description: Title page }
+  /api/doginals/r/dogemap/count:
     get:
       summary: Count of canonical titles
       responses:
         "200": { description: "{ count }" }
-  /doginals/address/{address}/dogemaps:
+  /api/doginals/address/{address}/dogemaps:
     get:
       summary: Titles currently held by an address
       parameters:
-        - in: path
-          name: address
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/Address"
       responses:
-        "200": { description: Holder's claims }
-  /land/parcel/{block}:
+        "200": { description: "{ address, dogemaps, total }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/land/parcel/{block}:
     get:
-      summary: Parcel title, builds, anchor, founder, standing
+      summary: Parcel title, current holder, builds, anchor, founder flag, advisory standing
       parameters:
-        - in: path
-          name: block
-          required: true
-          schema: { type: integer, minimum: 0 }
+        - $ref: "#/components/parameters/Block"
       responses:
-        "200": { description: Parcel }
-        "404": { description: No title }
-  /land/packs:
+        "200":
+          description: Parcel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  protocol: { type: string }
+                  parcel: { type: integer }
+                  title: { type: string }
+                  holder: { type: [string, "null"] }
+                  builds: { type: array, items: { $ref: "#/components/schemas/Build" } }
+                  anchor: { oneOf: [{ $ref: "#/components/schemas/Anchor" }, { type: "null" }] }
+                  is_founder: { type: boolean }
+                  standing: { type: object }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/land/packs:
     get:
-      summary: List packs
+      summary: List packs in id order
       parameters:
-        - in: query
-          name: after
-          schema: { type: string }
-        - in: query
-          name: limit
-          schema: { type: integer, default: 100, maximum: 500 }
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Pack list }
-  /land/packs/{id}:
+        "200": { description: "{ packs: [{ id, name, version, height, cursor }] }" }
+  /api/land/packs/{id}:
     get:
       summary: One pack by inscription id
       parameters:
@@ -95,11 +250,12 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { description: Pack }
-        "404": { description: Unknown pack }
-  /land/builds:
+        "200": { description: "{ id, name, version, height, schema, schema_uri, note, supersedes }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/land/builds:
     get:
-      summary: Live builds
+      summary: Live builds (limit bounds the scan before the pack filter)
       parameters:
         - in: query
           name: parcel
@@ -107,73 +263,91 @@ paths:
         - in: query
           name: pack
           schema: { type: string }
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Builds }
-  /land/anchors:
+        "200": { description: "{ builds: [Build] }" }
+  /api/land/anchors:
     get:
-      summary: Live cell occupants
-      responses:
-        "200": { description: Anchors }
-  /land/cell/{h3}:
-    get:
-      summary: Occupancy of one res-12 cell
+      summary: Live res-12 cell occupants in cell order
       parameters:
-        - in: path
-          name: h3
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Cell }
-        "400": { description: Bad H3 }
-  /land/district/{h3}:
+        "200": { description: "{ anchors: [Anchor + cursor] }" }
+  /api/land/cell/{h3}:
     get:
-      summary: District founder and live parcels
+      summary: Occupancy of one res-12 cell (status pending | final | free)
       parameters:
-        - in: path
-          name: h3
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/H3"
       responses:
-        "200": { description: District }
-  /land/region/{h3}:
+        "200": { description: "Anchor plus protocol, or { protocol, h3_cell, h3_res, status: free }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/land/district/{h3}:
     get:
-      summary: Region rollup
+      summary: Res-7 district founder and anchored parcels
       parameters:
-        - in: path
-          name: h3
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/H3"
       responses:
-        "200": { description: Region }
-  /land/holder/{address}:
+        "200": { description: "{ protocol, district, h3_res, founder, parcels, standing }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/land/districts:
     get:
-      summary: Titles, anchors, and builds for a holder
+      summary: Every district with a founder, in key order
       parameters:
-        - in: path
-          name: address
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Holder inventory }
-        "400": { description: Bad address }
-  /dmaps/checkpoint/{height}:
+        "200": { description: "{ protocol, h3_res, districts: [{ district, region, founder_parcel, anchor_id, final, priority, cursor }] }" }
+  /api/land/region/{h3}:
     get:
-      summary: Canonical checkpoint text and SHA-256
+      summary: Res-4 region rollup of districts
       parameters:
-        - in: path
-          name: height
-          required: true
-          schema: { type: integer, minimum: 0 }
+        - $ref: "#/components/parameters/H3"
+      responses:
+        "200": { description: "{ protocol, region, h3_res, districts, standing }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/land/holder/{address}:
+    get:
+      summary: Titles, anchored parcels, and builds for a holder
+      parameters:
+        - $ref: "#/components/parameters/Address"
+      responses:
+        "200": { description: "{ address, titles, anchored, builds }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/dmaps/checkpoint/latest:
+    get:
+      summary: Checkpoint at the indexed tip
+      responses:
+        "200":
+          description: Checkpoint
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Checkpoint" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/dmaps/checkpoint/{height}:
+    get:
+      summary: Canonical checkpoint text and SHA-256 at a height
+      parameters:
+        - $ref: "#/components/parameters/Height"
+      responses:
+        "200":
+          description: Checkpoint
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Checkpoint" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/land/checkpoint/latest:
+    get:
+      summary: Alias of /api/dmaps/checkpoint/latest
       responses:
         "200": { description: Checkpoint }
-        "404": { description: Height not indexed }
-  /land/checkpoint/{height}:
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/land/checkpoint/{height}:
     get:
-      summary: Alias of /dmaps/checkpoint/{height}
+      summary: Alias of /api/dmaps/checkpoint/{height}
       parameters:
-        - in: path
-          name: height
-          required: true
-          schema: { type: integer, minimum: 0 }
+        - $ref: "#/components/parameters/Height"
       responses:
         "200": { description: Checkpoint }
+        "404": { $ref: "#/components/responses/NotFound" }

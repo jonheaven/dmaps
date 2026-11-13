@@ -29,7 +29,9 @@ Status (see also README.md Start here, and AGENTS.md):
 
 ## HTTP (Dogex — read convenience, not authority)
 - docs/API.md, docs/openapi.yaml
-- Endpoints: /api/doginals/dogemaps/claims, /r/dogemap/block/{block}, /api/land/parcel/{block}, /packs, /builds, /anchors, /cell/{h3}, /district/{h3}, /region/{h3}, /holder/{address}, /api/dmaps/checkpoint/{height}
+- Base: https://dogex.command.dog (brief: /docs/dmaps). Errors are an HTTP status with a plain-text body.
+- Endpoints: /api/land/status (activation, maps_live, land_live), /api/doginals/dogemaps/claims?offset=&limit=, /api/doginals/dogemaps/claims/{block}, /api/land/parcel/{block}, /packs, /builds, /anchors, /cell/{h3}, /district/{h3}, /districts, /region/{h3}, /holder/{address}, /api/dmaps/checkpoint/latest, /api/dmaps/checkpoint/{height}
+- Dogex returns the §7 seed lat/lon for a title, not the res-9 H3 cell; compute it with h3-js 4.2.1 latLngToCell(lat, lon, 9)
 
 ## Primer
 - docs/h3.md — what H3 is, resolution table, derived vs chosen cells, h3-js 4.2.1 examples

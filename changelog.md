@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.4 — 2026-11-12
+
+API documentation only. No protocol rule, schema, vector, or checkpoint changed.
+
+- docs/API.md now matches what Dogex serves, field for field. Corrections:
+  - Base URL is `https://dogex.command.dog` (was `explorer.command.dog`); the brief is at `/docs/dmaps`.
+  - `GET /api/doginals/dogemaps/claims/{block}` (and `/r/dogemap/block/{block}`) returns `{ block_number, entries }` with 200 even when unclaimed. It was documented as a flat object with 404. `/api/land/parcel/{block}` is the route that 404s.
+  - Title rows carry `sequence_number`, `inscription_number`, `claim_timestamp`, the §7 seed `lat`/`lon`, and `body`. Dogex does not return `h3_cell`/`h3_res`; compute the res-9 cell with h3-js 4.2.1.
+  - Title pages accept `limit` (and `page_size`), default 50, max 500.
+  - `standing` has no `score`; `cell` has no `missed` field; builds and anchors carry `parcel` and a paging `cursor`.
+  - Errors are plain-text bodies. Indexer not loaded is 503, not 404.
+  - Capabilities `land` / `activation` describe mainnet defaults; `/api/land/status` reports the running values.
+- Documented routes added to Dogex: `GET /api/land/districts`, `GET /api/dmaps/checkpoint/latest` (and `/api/land/checkpoint/latest`), `after`/`limit` on `/api/land/builds`, a `cursor` on anchor rows, and `network`, `maps_live`, `land_live`, `maps_flag`, `land_flag`, `checkpoint_version`, `routes` on `/api/land/status`. These need a Dogex build that includes them; older builds answer 404/400 on the new routes.
+- docs/openapi.yaml rewritten to the same contract with absolute `/api/...` paths, response schemas, and plain-text error responses.
+- README and llms.txt point at the public base URL and `maps_live` / `land_live`.
+
 ## 0.1.3 — 2026-11-11
 
 - README Start here, AGENTS.md, and llms.txt now state that anchors are fully on-chain (title UTXO spend, no centralized DB), that any indexer recomputes identical state from the chain, and that the Dogex API is a read convenience, not authority. Includes a short end-to-end on-chain flow.

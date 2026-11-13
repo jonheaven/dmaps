@@ -30,7 +30,7 @@ Real-world land claims (**anchors**) are **fully on-chain**. Each pin is a Dogec
 
 A dApp that ties a parcel to a real-world place does two things: **read** the index, and (if the user holds the title) **inscribe an anchor**.
 
-**1. Read** from any Dogex (or other conformant) indexer. All routes are read-only JSON; see [docs/API.md](docs/API.md).
+**1. Read** from any Dogex (or other conformant) indexer. All routes are read-only JSON; see [docs/API.md](docs/API.md). The public Dogex index is `https://dogex.command.dog` (one-page brief: [dogex.command.dog/docs/dmaps](https://dogex.command.dog/docs/dmaps)).
 
 ```http
 GET /api/doginals/capabilities
@@ -39,10 +39,10 @@ GET /api/doginals/r/dogemap/block/{block}
 GET /api/land/parcel/{block}
 GET /api/land/cell/{h3}
 GET /api/land/holder/{address}
-GET /api/dmaps/checkpoint/{height}
+GET /api/dmaps/checkpoint/latest
 ```
 
-Until `MAPS_ACTIVATION_HEIGHT` / `LAND_ACTIVATION_HEIGHT` are announced, mainnet responses are empty (activation disabled). On **regtest** they are live from height 0. Probe `capabilities.land` and `activation.*` rather than hard-coding a height.
+Until `MAPS_ACTIVATION_HEIGHT` / `LAND_ACTIVATION_HEIGHT` are announced, mainnet responses are empty (activation disabled). On **regtest** they are live from height 0. Read `maps_live` / `land_live` from `GET /api/land/status` rather than hard-coding a height.
 
 **2. Write an anchor** (current title holder only). The inscription body is the JSON in [protocols/dland/examples/anchor-valid.json](protocols/dland/examples/anchor-valid.json):
 
