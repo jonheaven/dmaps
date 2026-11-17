@@ -6,7 +6,9 @@
 import { isValidCell, getResolution, cellToParent } from "h3-js";
 import { parseBody, isInscriptionId, isU32, has, codePoints } from "../../reference/json-profile.mjs";
 
-export const MARKER = "Ð:LAND";
+/** New inscriptions use this. `Ð:LAND` is the same protocol (early mainnet anchors). */
+export const MARKER = "dland";
+export const MARKER_LEGACY = "Ð:LAND";
 export const H3_ANCHOR_RES = 12;
 export const H3_DISTRICT_RES = 7;
 export const H3_REGION_RES = 4;
@@ -22,7 +24,7 @@ export function parse(body) {
   const r = parseBody(body, MAX_PAYLOAD);
   if (!r.ok) return r;
   const v = r.value;
-  if (v.p !== MARKER) return { ok: false, why: "p" };
+  if (v.p !== MARKER && v.p !== MARKER_LEGACY) return { ok: false, why: "p" };
   // `v` is not read: there are no versions inside the protocol.
   if (v.op === "pack") return parsePack(v);
   if (v.op === "build") return parseBuild(v);

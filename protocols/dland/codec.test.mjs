@@ -90,4 +90,6 @@ test("no versions and no cooldown: v is not read, seal_all is not a field", () =
   const r = parse(JSON.stringify({ p: "Ð:LAND", op: "build", parcel: 1, title: T, pack: T, seal_all: true }));
   assert.equal(r.ok, false);
   assert.equal(r.why, "content");
+  assert.equal(parse(JSON.stringify({ p: "dland", op: "pack", name: "x", version: "1", schema: {} })).ok, true);
+  assert.equal(parse(JSON.stringify({ p: "nope", op: "pack", name: "x", version: "1", schema: {} })).ok, false);
 });

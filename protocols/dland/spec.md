@@ -1,7 +1,7 @@
 # ÐLand — expansion packs, builds, and real-world anchors on ÐMaps parcels
 
 **Protocol:** ÐLand
-**Identifier:** `p: "Ð:LAND"`
+**Identifier:** `p: "dland"` (also accepted: `p: "Ð:LAND"`)
 **Version:** 0.3
 **Status:** Launch Draft
 **Normative language:** RFC 2119
@@ -9,7 +9,7 @@
 **Companion:** [ÐMaps](../dogemaps/spec.md) (`p: "Ð:MAPS"`) remains the canonical block-title layer. ÐLand does **not** mint, override, or displace a ÐMaps claim.
 **License:** MIT ([LICENSE](../../LICENSE))
 
-The on-chain marker is `p: "Ð:LAND"`. A rename would be a dated revision with a new marker; until then, emit this marker exactly. ÐMaps stays the title protocol (one FCFS claim per `block_height`). ÐLand is the optional use layer: packs, holder-gated builds, and real-world H3 anchors.
+The on-chain marker to emit is `p: "dland"`. Indexers MUST also accept `p: "Ð:LAND"` as the same protocol (the first mainnet anchors used it). Any other `p` is not ÐLand. ÐMaps stays the title protocol (one FCFS claim per `block_height`). ÐLand is the optional use layer: packs, holder-gated builds, and real-world H3 anchors.
 
 ---
 
@@ -103,7 +103,7 @@ A parcel is any block height with a canonical ÐMaps title, including existing `
 
 ### 5.1 Every op (MUST)
 
-- `p`: `Ð:LAND`
+- `p`: `dland`, or the legacy spelling `Ð:LAND`
 - `op`: one of `pack` | `build` | `anchor`
 - `v` is not read. There are no protocol versions; a `v` of any value (or none) is ignored like any unknown key.
 - An inscription payload (Doginals envelope). The body MUST satisfy the dmaps JSON profile ([INDEXING.md](../../docs/INDEXING.md) §2.2): strict UTF-8, one object, no duplicate keys, integers only, depth ≤ 32, at most **16 KiB**. A body that breaks the profile is not a ÐLand op.
@@ -115,7 +115,7 @@ A parcel is any block height with a canonical ÐMaps title, including existing `
 ### 5.2 Forbidden
 
 - OP_RETURN-only payloads with no inscription envelope.
-- `p` not exactly `Ð:LAND`.
+- `p` other than `dland` or `Ð:LAND`.
 - A `build` or `anchor` that targets a height with no canonical ÐMaps title.
 
 ---
@@ -148,7 +148,7 @@ A `pack` inscription **is** the pack. Pack id = that inscription id. No unique-n
 
 ```json
 {
-  "p": "Ð:LAND",
+  "p": "dland",
   "op": "pack",
   "name": "street-scene",
   "version": "1.0.0",
@@ -179,7 +179,7 @@ Attaches pack-typed content to a parcel. The live build for `(parcel, pack_id)` 
 
 ```json
 {
-  "p": "Ð:LAND",
+  "p": "dland",
   "op": "build",
   "parcel": 6197585,
   "title": "aaaa…i0",
@@ -212,7 +212,7 @@ The holder pins the parcel to a **chosen** H3 cell at a fixed fine resolution. T
 
 ```json
 {
-  "p": "Ð:LAND",
+  "p": "dland",
   "op": "anchor",
   "parcel": 6197585,
   "title": "aaaa…i0",
@@ -369,7 +369,7 @@ That is all. A parcel's live cell is the one `C` record naming it. After every b
 
 Indexes (derived, not consensus): each parcel's live cell, live cells per district in priority order (whose first row is the Founder), and live-cell counts per district per region. They make parcel, district and region queries O(page).
 
-**Order.** For each inscription in canonical order: if it is a ÐMaps claim, apply it (INDEXING §4); if `p` is `Ð:LAND`, parse; apply `pack`; for `build`/`anchor`, apply §6 then §8/§9. Reorg: undo the block (the block's delta is exactly what changed).
+**Order.** For each inscription in canonical order: if it is a ÐMaps claim, apply it (INDEXING §4); if `p` is `dland` or `Ð:LAND`, parse; apply `pack`; for `build`/`anchor`, apply §6 then §8/§9. Reorg: undo the block (the block's delta is exactly what changed).
 
 ---
 
@@ -416,7 +416,7 @@ See [examples/](examples/), [vectors/conformance.json](vectors/conformance.json)
 
 ## 16. Changelog
 
-- **0.3** — Simplification. `v` is not read (no versions). The 144-block re-anchor cooldown is removed; commit-first is the only cell rule. `seal_all` is removed (one `seal` per slot does the same). The district Founder is derived from the cells on read and is no longer consensus state (no `D` records, no end-of-block settlement); Standing becomes `land-standing/2`. The parcel-live `L` record is gone: a parcel's cell is the `C` record that names it, and `B` lines drop the informative `applied` count, so the state is `T/P/B/C`. Existing `<n>.dogemap` text titles authorize ÐLand like JSON titles. Packs stay any-inscription, multi-transaction allowed; the vin[0] committed envelope and title spend stay mandatory for `build`/`anchor`. Rationale: [changelog](../../changelog.md).
+- **0.3** — Marker: new bodies use `p: "dland"`. Indexers also accept `p: "Ð:LAND"` (same ops; early mainnet anchors). Simplification. `v` is not read (no versions). The 144-block re-anchor cooldown is removed; commit-first is the only cell rule. `seal_all` is removed (one `seal` per slot does the same). The district Founder is derived from the cells on read and is no longer consensus state (no `D` records, no end-of-block settlement); Standing becomes `land-standing/2`. The parcel-live `L` record is gone: a parcel's cell is the `C` record that names it, and `B` lines drop the informative `applied` count, so the state is `T/P/B/C`. Existing `<n>.dogemap` text titles authorize ÐLand like JSON titles. Packs stay any-inscription, multi-transaction allowed; the vin[0] committed envelope and title spend stay mandatory for `build`/`anchor`. Rationale: [changelog](../../changelog.md).
 
 - **0.2** — Strict JSON profile and canonical ids; `build`/`anchor` must be `i0` in a bound `ord` envelope; title spend checked against the start-of-transaction spent set and never by a title created in the same transaction; full `isValidCell` check and `cellToParent` parents; displacement unanchors the loser; same-cell re-anchor is a no-op; seal without content keeps content; pack names verbatim; founders settled at end of block from the lowest live key; no bitwork; incremental `dmaps-state/2` root replaces the per-block checkpoint; paged district/region queries.
 - **0.1** — Initial launch draft: packs, holder-spend builds, res-12 anchors with commit-first, district/region rollups, standing/1.
