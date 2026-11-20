@@ -1,8 +1,8 @@
-> **In this repository:** the committed (content-binding) P2SH lock is **normative** for every ÐLand `build` and `anchor`, and optional for ÐMaps claims (a claim is any inscription; first wins) and ÐLand packs. The text below is the Dogenals committed-envelope specification. Links to private implementation paths are informative; the lock itself is fully specified here.
+> **In this repository:** the committed (content-binding) P2SH lock is **normative** for every ÐLand `build` and `anchor`, and optional for ÐMaps claims (a claim is any inscription; first wins) and ÐLand packs. The text below is the committed-envelope specification. Links to private implementation paths are informative; the lock itself is fully specified here.
 
 # Committed envelope — a P2SH lock that fixes the reveal bytes
 
-**Status:** Normative for ÐNS commit-first priority ([DNS spec §5.7](https://github.com/jonheaven/dns)), and for every ÐLand `build` and `anchor` in this repository. The same lock is used by Ð:MOD and Ð:BOX (specified in the Dogenals protocol set, not vendored here). Recommended for every new Doginals mint.
+**Status:** Normative for ÐNS commit-first priority ([DNS spec §5.7](https://github.com/jonheaven/dns)), and for every ÐLand `build` and `anchor` in this repository. The same lock is used by Ð:MOD and Ð:BOX (specified with the other Doginals metaprotocols, not vendored here). Recommended for every new Doginals mint.
 **Reference:** any indexer that implements the redeem below. This document is the normative lock.
 
 ## 1. The problem with the classic lock
@@ -60,4 +60,4 @@ Multi-transaction bodies are not bound in v1 of this spec (each partial could be
 
 ## 5. Vectors and interpreter check
 
-The lock in §2–§3 is fully specified in this document (redeem shape, size limits, and the indexer “bound” check). Worked redeem-hex vectors and an interpreter harness (classic vs committed reveals) live with the Dogenals committed-envelope package; they are **not vendored in this repository** and are not required to implement or verify the lock. Dogex flags a reveal `bound` when it matches §3.
+The lock in §2–§3 is fully specified in this document (redeem shape, size limits, and the indexer “bound” check). Worked redeem-hex vectors and an interpreter harness (classic vs committed reveals) live with the committed-envelope package; they are **not vendored in this repository** and are not required to implement or verify the lock. Dogex flags a reveal `bound` when it matches §3.

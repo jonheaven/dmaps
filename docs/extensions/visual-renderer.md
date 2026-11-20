@@ -20,7 +20,7 @@ Indexers **SHOULD** expose integer counters used only for modulation (not for pa
   `dogemap`, `parcel`, or `title` pointer) **or** appear in the same spending graph edge documented by the
   indexer. Counting rules **MUST** be versioned in indexer documentation so third parties can reproduce totals.
 
-- **`doginal_utxos`:** Count of distinct **Dogenals inscription UTXOs** that the indexer considers **linked** to
+- **`doginal_utxos`:** Count of distinct **Doginals inscription UTXOs** that the indexer considers **linked** to
   the parcel’s canonical title: inscriptions that are children of the title (Doginals parent/child), plus the
   parcel's live ÐLand build slots. The `Ð:MAPS` `upgrade`/`link` ops were removed in core 0.3; legacy ones MAY be
   counted if the indexer documents how. Double-counting **MUST** be avoided.

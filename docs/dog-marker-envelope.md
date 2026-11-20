@@ -1,15 +1,15 @@
-> Informative in this repo: how Era-2 `dog` markers relate to classic `ord` inscriptions. ÐMaps and ÐLand payloads are JSON; either envelope may carry them.
+> Informative in this repo: how `dog` markers relate to classic `ord` inscriptions. ÐMaps and ÐLand payloads are JSON; either envelope may carry them.
 
 # Dog Marker Envelope Specification (GDR / eternal.dog lab)
 
 **Status:** Lab — **Good Dog Registry** / [eternal.dog](https://eternal.dog) only.  
-**Not** the Doginals inscription standard. Community Doginals, ÐMP listings, and **minted dog photos / media** use regular push-only **`ord`**.
+**Not** a replacement for community Doginals. Community Doginals, ÐMP listings, and **minted dog photos / media** use regular push-only **`ord`**.
 
 This document defines an optional **`dog`** envelope for **GDR registry JSON** (`p:"GDR"` register / addendum / …) when eternal.dog wants a distinct carrier from image Doginals. Indexers that do not implement `dog` MUST still accept GDR JSON on `ord`.
 
 ## Overview
 
-> **Dogecoin carrier.** Dogecoin has no SegWit or Taproot witness, and Core requires a push-only scriptSig, so the `OP_FALSE OP_IF … OP_ENDIF` form below cannot appear in a Dogecoin transaction. It describes the envelope's logical layout (and witness chains). On Dogecoin the only carrier is the push-only era-1 form in Vector C: `PUSH("dog") PUSH(version) PUSH(<cbor>)…` in `vin[0].scriptSig`, followed by `<sig> <redeem>` of a P2SH reveal (use the committed redeem, [committed-envelope.md](committed-envelope.md)).
+> **Dogecoin carrier.** Dogecoin has no SegWit or Taproot witness, and Core requires a push-only scriptSig, so the `OP_FALSE OP_IF … OP_ENDIF` form below cannot appear in a Dogecoin transaction. It describes the envelope's logical layout (and witness chains). On Dogecoin the only carrier is the push-only scriptSig form in Vector C: `PUSH("dog") PUSH(version) PUSH(<cbor>)…` in `vin[0].scriptSig`, followed by `<sig> <redeem>` of a P2SH reveal (use the committed redeem, [committed-envelope.md](committed-envelope.md)).
 
 The dog marker uses the pattern `OP_FALSE OP_IF "dog"` followed by a versioned envelope structure. Intended payload is GDR registry data (compact JSON/CBOR), not image bytes.
 
@@ -110,12 +110,12 @@ This enables privacy-preserving inscriptions while maintaining on-chain verifiab
 
 Dog marker inscriptions are fully compatible with:
 
-- Dogenals numbering (continuous sequence)
+- Doginals numbering (continuous sequence)
 - ÐMS metadata
 - ÐMP marketplace
 - All protocol participation
 
-They produce the same unified Dogenals state as ord inscriptions.
+They produce the same unified Doginals state as ord inscriptions.
 
 ## Implementation Notes
 
@@ -126,7 +126,7 @@ Indexers MUST:
 1. Detect `OP_FALSE OP_IF "dog"` pattern
 2. Extract version byte
 3. Parse envelope according to version
-4. Convert to unified Dogenals format
+4. Convert to unified Doginals format
 5. Apply protocol-specific validation
 
 ### Fallback Handling
@@ -180,7 +180,7 @@ Version 2+ may include:
 }
 ```
 
-This envelope provides a solid foundation for Dogenals Era 2 while maintaining the ecosystem's core principles of openness, verifiability, and future-proofing.
+This envelope provides a solid foundation for `dog` envelopes while maintaining the ecosystem's core principles of openness, verifiability, and future-proofing.
 
 ## Conformance test vectors (byte-level)
 
@@ -226,7 +226,7 @@ Expected indexer behavior:
 3. Preserve opaque bytes.
 4. Index as unsupported (do not drop silently).
 
-### Vector C: era1 script_sig dog marker (the Dogecoin carrier)
+### Vector C: scriptSig `dog` marker (the Dogecoin carrier)
 
 Data pushes:
 

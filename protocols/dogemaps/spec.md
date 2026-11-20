@@ -190,5 +190,5 @@ Launch draft.
 
 ---
 
-*Dogenals protocol. H3: Uber (Apache-2.0) applies to the H3 library; this document is MIT under the repository
+*Doginals protocol. H3: Uber (Apache-2.0) applies to the H3 library; this document is MIT under the repository
 [LICENSE](../../LICENSE).*
